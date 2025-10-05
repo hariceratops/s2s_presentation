@@ -215,8 +215,10 @@ Lets throw this to our code
    bytes: 8
 ```
 --
+count: false
 We will have to handle buffer exhaustion now
----
+--
+count: false
 ```cpp
 enum parse_error { buffer_exhausted = 0 };
 using parse_res = std::expected<some_thing, parse_error>;
