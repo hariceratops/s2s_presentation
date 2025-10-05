@@ -54,12 +54,14 @@ ENGINEER_SINCE:2016_08_16
 ### How this came to be?
 - Parsing binary format is something any developer would run into at some point
 - No declarative way to describe a binary format in C++
-- Came across
+- Came across following projects which led to some solid work
   - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
   - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
   - [Value Based Metaprogramming, Kris Jusiak](https://www.youtube.com/watch?v=yriNqhv-oM0)
 ???
-- Attend conferences
+- Too much boiler plate if handwritten, code generation was not appealing
+- As a side note, watch talks, attend conferences and meet people
+- Thanks to Kris, Hana
 ---
 class: center, middle
 # Fact Check!
@@ -314,6 +316,11 @@ printf("%s %s\n", h.left_hand, h.right_hand);
 ---
 class: center, middle
 ### &#x26A0 Template Metaprogramming Ahead!
+???
+- I have had love-hate relationship with TMP
+- Whenever I write template typename ..., I get faces, I mean not angry faces, but not happy faces
+- I do get the sentiment here, they are hard to get right, slower compile times
+- But TMP has its place, like our little project
 ---
 class: center, middle
 # TMP Primer
@@ -321,10 +328,28 @@ class: center, middle
 ### Variadic Templates
 ```cpp
 template <typename... Args>
-struct type_list {};
+void func(Args... args) {
+  auto l = func_a(args...);
+  auto k = func_b(func_c(args)...);
+}
 ```
 - ... before template variable in the template declaration denotes definition
 - ... after template variable in the body of the template denotes expansion
+- func(args...) => func(arg_1, arg_2, ..., arg_n)
+- func(args)... => func(arg_1), func(arg_2), func(arg_3) ... func(arg_n)
+- If you have different sized parameter packs, they shall be of same size
+- An excellent talk by Miro Knejp [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8)
+--
+count: false
+
+```cpp
+template <typename... Args>
+struct type_list {};
+```
+???
+- Variadic functions are everywhere. make_unique, make_shared you name it
+- Store arbitrary number of types in this placeholder list
+- This along with pack manipulation would be one of the central concept for the library
 ---
 ### Metafunctions
 A function executed in compile time 
@@ -648,6 +673,39 @@ struct cast_error {
 using rw_result = std::expected<void, error_reason>;
 using cast_result = std::expected<void, cast_error>;
 ```
+---
+```cpp
+template <typename... args>
+struct struct_cast_impl;
+// Needs rework
+template <typename... fields, typename stream, auto endianness>
+struct struct_cast_impl<fields..., stream, endianness> {
+  using S = struct_field_list_impl<fields...>;
+  using R = std::expected<S, cast_error>;
+  constexpr auto operator()(stream& s) -> R {
+    S field_list;
+    cast_result pipeline_seed{};
+    auto res = (
+      pipeline_seed |
+      ... |
+      [&]() -> cast_result {
+        auto& field = static_cast<fields&>(field_list);
+        // Some read magic here &#x1FA84
+        if(!read_res) {
+          auto field_name = std::string_view{fields::field_id.data()};
+          auto err = read_res.error();
+          auto validation_err = cast_error{err, field_name};
+          return std::unexpected(validation_err);
+        }
+        return {};
+      }
+    );
+    return res ? R(field_list) : std::unexpected(res.error());
+  }
+};
+```
+???
+- Short circuit the remaining pipeline since read failed for current field
 ---
 
 Link to project: [s2s](https://github.com/hariceratops/s2s)
