@@ -579,7 +579,7 @@ struct struct_field_list : fields... {
 ```
 ---
 ### How the accessor[] works here?
-Valid cast
+Static casting the "struct" which is inherited from multiple fields to one valid field, leads to object slicing and only the base field from which struct was inherited is returned by reference
 .center[![valid_cast](./images/cast_valid_object_slicing.png)]
 ---
 count: false
@@ -606,10 +606,11 @@ count: false
 Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
+```
 ???
 - Dont be afraid to do a project, even at the cost of failing
 - It takes a village
-```
+
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js">
