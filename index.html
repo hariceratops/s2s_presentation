@@ -32,7 +32,7 @@ class: center, middle
 ### Hari Prasad Manoharan
 
 ---
-# About Me
+### About Me
 
 ```bash
 > whoami
@@ -44,20 +44,22 @@ PRIMARY_DOMAIN:embedded_systems
 ENGINEER_SINCE:2016_08_16
 ```
 ---
-# Disclaimer
+### Disclaimer
 
 - I am not an expert, I am just a dude
 - The views presented are not of my employer
 - Project is not production ready, at least not yet!
 - We will walkthrough the simplified version of the project source
 ---
-# How this came to be?
+### How this came to be?
 - Parsing binary format is something any developer would run into at some point
 - No declarative way to describe a binary format in C++
 - Inspired by 
   - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
   - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
   - [Value Based Metaprogramming, Kris Jusiak](https://www.youtube.com/watch?v=yriNqhv-oM0)
+???
+- Attend conferences
 ---
 class: center, middle
 # Fact Check!
@@ -155,7 +157,7 @@ count: false
 deadbeef d424242 c9cafed0
 ```
 ---
-# Solution
+Solution
 ```cpp
 struct some_thing {
   uint32_t member_1;
@@ -302,7 +304,7 @@ printf("%s %s\n", h.left_hand, h.right_hand);
 ---
 .center[![dr_strange](./images/dr_strange.gif)]
 ---
-# Possible Solutions
+### Possible Solutions
 - Custom DSL 
 - Rolling out a custom DSL and code generator
 - Template Metaprogramming Magic
@@ -316,9 +318,15 @@ class: center, middle
 class: center, middle
 # TMP Primer
 ---
-# Variadic Templates
+### Variadic Templates
+```cpp
+template <typename... Args>
+struct type_list {};
+```
+- ... before template variable in the template declaration denotes definition
+- ... after template variable in the body of the template denotes expansion
 ---
-# Metafunctions
+### Metafunctions
 A function executed in compile time 
 - which takes types or values known at compile time as input
 - returns types or values known at compiler time
@@ -366,6 +374,9 @@ inline constexpr bool is_optional_like_v = is_optional_like<T>::res;
 template <typename T>
 concept optional_like = is_optional_like_v<T>;
 ```
+???
+- One can roll out a function to search a type_list with a predicate
+- Sort it
 ---
 class: center, middle
 # Lets write our parser
@@ -398,7 +409,7 @@ struct_field_list(
 );
 ```
 ---
-# Reality
+### Reality
 ```cpp
 * s2s::struct_field_list<
 *  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
@@ -542,9 +553,62 @@ count: false
 s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>> &#x2705
 ```
 ---
+### Struct
+```cpp
+template <typename... fields>
+struct struct_field_list : fields... {
+  template <typename field_accessor,
+            typename field = field_lookup_v<
+              type_list<fields...>, 
+              field_accessor::field_id>
+            >
+    requires (!std::is_same_v<field_lookup_failed, field>)
+  constexpr auto& operator[](field_accessor)  {
+    return static_cast<field&>(*this).value;
+  }
+
+  template <typename field_accessor,
+            typename field = field_lookup_v<
+              type_list<fields...>, 
+              field_accessor::field_id>
+    requires (!std::is_same_v<field_lookup_failed, field>)
+  constexpr const auto& operator[](field_accessor) const {
+    return static_cast<const field&>(*this).value;
+  }
+};
+```
+---
+### How the accessor[] works here?
+Valid cast
+.center[![valid_cast](./images/cast_valid_object_slicing.png)]
+---
+count: false
+.center[![invalid_cast](./images/cast_invalid_object_slicing.png)]
+
+```sh
+<source>:33:24: error: no viable overloaded operator[] for type 's2s::struct_field_list_impl<2UL, s2s::field<fixed_string<2UL - 1>{{"a"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>, s2s::field<fixed_string<2UL - 1>{{"b"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>> const'
+   33 |     std::cout << fields["e"_f] << fields["b"_f];
+      |                  ~~~~~~^~~~~~
+/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2181:19: note: candidate function template not viable: 'this' argument has type 's2s::struct_field_list_impl<2UL, s2s::field<fixed_string<2UL - 1>{{"a"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>, s2s::field<fixed_string<2UL - 1>{{"b"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>> const', but method is not marked const
+ 2181 |   constexpr auto& operator[](field_accessor)  {
+      |                   ^
+/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2191:25: note: candidate template ignored: constraints not satisfied [with field_accessor = s2s::field_accessor<s2s::fixed_string<2UL - 1>{{"e"}}>, field_lookup_res = static_optional<field_type_info>{{0, 0}, false}]
+ 2191 |   constexpr const auto& operator[](field_accessor) const {
+      |                         ^
+/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2190:15: note: because 'static_optional<field_type_info>{{0, 0}, false}.has_value' evaluated to false
+ 2190 |     requires (!std::is_same_v<field_lookup_failed, field>)
+      |
+```
+???
+- Not the prettiest error message, this is as good as it gets
+- In fact clang does a great job with being succtinct
+---
 Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
+???
+- Dont be afraid to do a project, even at the cost of failing
+- It takes a village
 ```
 
     </textarea>
