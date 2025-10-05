@@ -1,0 +1,326 @@
+<!-- https://github.com/gnab/remark/issues/538#issuecomment-419173985 -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Rubik);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Source+Code+Pro:400,700,400italic);
+
+      body { font-family: 'Rubik'; }
+      h1 {
+        font-family: 'Rubik';
+        font-weight: bold;
+      }
+      h2, h3 {
+        font-family: 'Rubik';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Source Code Pro'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Binary Parsing, C++23 Style
+### Hari Prasad Manoharan
+
+---
+# whoami
+
+```bash
+> cat whoami
+USER:hari
+COMPANY:mbition
+GIT:https://github.com/hariceratops/
+LINKEDIN:hari 
+PRIMARY_DOMAIN:embedded_systems
+ENGINEER_SINCE:2016_08_16
+```
+---
+# Disclaimer
+
+- I am not an expert, I am just a dude
+- The views presented are not of my employer
+- Project is not production ready, at least not yet!
+- We will walkthrough the simplified version of the project source
+---
+# How this came to be?
+- Parsing binary format is something any developer would run into at some point
+- Inspired by 
+  - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
+  - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
+  - [Value Based Metaprogramming, Kris Jusiak](https://www.youtube.com/watch?v=yriNqhv-oM0)
+---
+class: center, middle
+# Fact Check!
+---
+```cpp
+struct some_thing {
+  uint32_t member_1;
+  uint32_t member_2;
+  uint32_t member_3;
+};
+auto main(void) -> int {
+  std::ifstream file("file.bin", std::ios::binary | std::ios::in);
+  some_thing instance;
+  file.read(reinterpret_cast<char*>(&instance), sizeof(instance));
+  std::println("{:X} {:X} {:X}", 
+    instance.member_1, 
+    instance.member_2, 
+    instance.member_3
+  );
+};
+```
+```sh
+# Input: file.bin
+0x000000: 0xef 0xbe 0xad 0xde ....
+0x000004: 0x0d 0xd0 0xfe 0xca ....
+0x000008: 0xef 0xbe 0xef 0xbe ....
+0x00000c:
+   bytes: 12
+```
+--
+count: false
+```sh
+deadbeef cafed00d beefbeef
+```
+---
+```cpp
+struct some_thing {
+  uint32_t member_1;
+* uint8_t member_2;
+  uint32_t member_3;
+};
+auto main(void) -> int {
+  std::ifstream file("file.bin", std::ios::binary | std::ios::in);
+  some_thing instance;
+  file.read(reinterpret_cast<char*>(&instance), sizeof(instance));
+  std::println("{:X} {:X} {:X}", 
+    instance.member_1, 
+    instance.member_2,
+    instance.member_3
+  );
+};
+```
+```sh
+# Input: file.bin
+0x000000: 0xef 0xbe 0xad 0xde ....
+*0x000004: 0x2a 0x0d 0xd0 0xfe ....
+0x000008: 0xca                ....
+0x00000c:
+   bytes: 9
+```
+--
+count: false
+```sh
+deadbeef 2a ca7f
+```
+---
+```cpp
+struct some_thing {
+  uint32_t member_1;
+  uint32_t member_2;
+  uint32_t member_3;
+};
+
+auto main(void) -> int {
+  std::ifstream file("file.bin", std::ios::binary | std::ios::in);
+  some_thing instance;
+  file.read(reinterpret_cast<char*>(&instance), sizeof(instance));
+  std::println("{:X} {:X} {:X}", 
+    instance.member_1, 
+    instance.member_2, 
+    instance.member_3
+  );
+};
+```
+```sh
+0x000000: 0xef 0xbe 0xad 0xde ....
+*0x000004: 0x42 0x42 0x42 0x0d ....
+0x000008: 0xd0 0xfe 0xca      ....
+0x00000c:
+   bytes: 11
+```
+--
+count: false
+```sh
+deadbeef d424242 c9cafed0
+```
+---
+# Solution
+```cpp
+struct some_thing {
+  uint32_t member_1;
+  uint32_t member_2;
+  uint32_t member_3;
+};
+
+auto main(void) -> int {
+  std::ifstream file("file.bin", std::ios::binary | std::ios::in);
+  some_thing instance;          
+  file.read(reinterpret_cast<char*>(&instance.member_1), sizeof(instance.member_1));
+  file.read(reinterpret_cast<char*>(&instance.member_2), 3);
+  file.read(reinterpret_cast<char*>(&instance.member_3), sizeof(instance.member_3));
+  std::println("{:X} {:X} {:X}", instance.member_1, instance.member_2, instance.member_3);
+  file.close();
+};
+```
+---
+count: false
+```cpp
+struct some_thing {
+  uint32_t member_1;
+  uint32_t member_2;
+  uint32_t member_3;
+};
+
+auto parse_something(std::ifstream& file) -> some_thing {
+  constexpr std::size_t member_1_size = sizeof(instance.member_1);
+  constexpr std::size_t member_2_size = 3;
+  constexpr std::size_t member_3_size = sizeof(instance.member_3);
+
+  some_thing instance;
+  file.read(reinterpret_cast<char*>(&instance.member_1), member_1_size);
+  file.read(reinterpret_cast<char*>(&instance.member_2), member_2_size);
+  file.read(reinterpret_cast<char*>(&instance.member_3), member_3_size);
+  return instance;
+}
+
+auto main(void) -> int {
+  std::ifstream file("file.bin", std::ios::binary | std::ios::in);
+  some_thing instance = parse_something();          
+  std::println("{:X} {:X} {:X}",
+    instance.member_1, 
+    instance.member_2, 
+    instance.member_3
+  );
+  file.close();
+};
+```
+---
+Lets throw this to our code
+```sh
+0x000000: 0xef 0xbe 0xad 0xde ....
+0x000004: 0x42 0x42 0x42 0x0d ....
+0x000008:                     ....
+0x00000c:
+   bytes: 8
+```
+--
+We will have to handle buffer exhaustion now
+---
+```cpp
+enum parse_error { buffer_exhausted = 0 };
+using parse_res = std::expected<some_thing, parse_error>;
+
+auto parse_something(std::ifstream& file) -> parse_res {
+  constexpr std::size_t member_1_size = sizeof(instance.member_1);
+  constexpr std::size_t member_2_size = 3;
+  constexpr std::size_t member_3_size = sizeof(instance.member_3);
+
+  some_thing instance;
+  if(!file.read(reinterpret_cast<char*>(&instance.member_1), member_1_size))
+    return std::unexpected(parse_error::buffer_exhausted);
+  if(!file.read(reinterpret_cast<char*>(&instance.member_2), member_2_size))
+    return std::unexpected(parse_error::buffer_exhausted);
+  if(!file.read(reinterpret_cast<char*>(&instance.member_3), member_3_size))
+    return std::unexpected(parse_error::buffer_exhausted);
+  return instance;
+}
+```
+---
+```cpp
+struct some_thing {
+  uint32_t member_1;
+  bool member_2;
+  // Has to be parsed only if member_2 == true
+  uint32_t member_3;
+};
+```
+--
+count: false
+```cpp
+auto parse_something(std::ifstream& file) -> parse_res {
+  constexpr std::size_t member_1_size = sizeof(instance.member_1);
+  constexpr std::size_t member_2_size = 3;
+  constexpr std::size_t member_3_size = sizeof(instance.member_3);
+
+  some_thing instance;
+  if(!file.read(reinterpret_cast<char*>(&instance.member_1), member_1_size))
+    return std::unexpected(parse_error::buffer_exhausted);
+* if(instance.member_2 && !file.read(reinterpret_cast<char*>(&instance.member_2), member_2_size))
+    return std::unexpected(parse_error::buffer_exhausted);
+  if(!file.read(reinterpret_cast<char*>(&instance.member_3), member_3_size))
+    return std::unexpected(parse_error::buffer_exhausted);
+  return instance;
+}
+```
+---
+class: middle
+- Length prefixed vectors
+--
+
+count: false
+- Unions / TLV
+--
+
+count: false
+- Endianness
+--
+
+count: false
+- Validation of Field Values
+--
+
+count: false
+- Delimited Fields
+--
+
+count: false
+- Magic Numbers
+---
+### Or as Dr.Stephan Strange said,
+```c 
+struct hands {
+  char left_hand[4];
+  char right_hand[4];
+};
+hands h{};
+strcpy(h.left_hand, "things.....");
+printf("%s %s\n", h.left_hand, h.right_hand);
+```
+---
+.center[![dr_strange](dr_strange.gif)]
+---
+# Possible Solutions
+- Custom DSL 
+- Rolling out a custom DSL and code generator
+- Template Metaprogramming Magic
+- &#x1F381
+---
+.center[![i_like_this](i_like_this.png)]
+---
+class: center, middle
+### &#x26A0 Template Metaprogramming Ahead!
+---
+# TMP Primer
+
+
+
+    </textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js">
+    </script>
+    <script>
+    var slideshow = remark.create({
+        highlightLines: true
+    });
+    </script>
+  </body>
+</html>
