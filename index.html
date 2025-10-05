@@ -39,7 +39,7 @@ class: center, middle
 USER:hari
 COMPANY:mbition
 GIT:https://github.com/hariceratops/
-LINKEDIN:hari 
+LINKEDIN:https://www.linkedin.com/in/hari-prasad-manoharan-79a4ba102/
 PRIMARY_DOMAIN:embedded_systems
 ENGINEER_SINCE:2016_08_16
 ```
@@ -53,6 +53,7 @@ ENGINEER_SINCE:2016_08_16
 ---
 # How this came to be?
 - Parsing binary format is something any developer would run into at some point
+- No declarative way to describe a binary format in C++
 - Inspired by 
   - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
   - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
@@ -310,9 +311,59 @@ printf("%s %s\n", h.left_hand, h.right_hand);
 class: center, middle
 ### &#x26A0 Template Metaprogramming Ahead!
 ---
+class: center, middle
 # TMP Primer
+---
+# Variadic Templates
+---
+# Metafunctions
+A function executed in compile time 
+- which takes types or values known at compile time as input
+- returns types or values known at compiler time
+- typically implemented with class templates, specializations and using aliases
+```
+f(T) => T | V
+f(V) => T | V
+```
+--
+count: false
+Typical example, from the STL
+```cpp
+template< class T >
+using remove_cv_t = typename remove_cv<T>::type;
+```
+--
+count: false
+Metafunctions are composable
+```cpp
+template<class T>
+struct remove_cvref {
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+```
+---
+count: false
+It is possible to roll out one's own metafunction
+```cpp
+template <typename T>
+struct is_optional_like;
 
+template <typename T>
+struct is_optional_like {
+  static inline constexpr bool res = false;
+};
 
+template <typename T>
+struct is_optional_like<std::optional<T>> {
+  static inline constexpr bool res = true;
+};
+
+template <typename T>
+inline constexpr bool is_optional_like_v = is_optional_like<T>::res;
+
+template <typename T>
+concept optional_like = is_optional_like_v<T>;
+```
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js">
