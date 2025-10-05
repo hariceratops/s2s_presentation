@@ -455,12 +455,91 @@ struct fixed_string {
 
 template <std::size_t N>
 fixed_string(const char (&)[N]) -> fixed_string<N - 1>;
-template <std::size_t N1, std::size_t N2>
 
+template <std::size_t N1, std::size_t N2>
 constexpr bool operator==(fixed_string<N1> lhs, fixed_string<N2> rhs) {
   if constexpr(N1 != N2) return false;
   return std::string_view{lhs.data()} == std::string_view{rhs.data()};
 }
+```
+---
+### Literals for accessing our fields
+```cpp
+template <fixed_string id>
+struct field_accessor {
+  static constexpr auto field_id = id;
+};
+
+
+namespace s2s_literals {
+template <fixed_string id>
+constexpr auto operator""_f() {
+  return field_accessor<id>{};
+}
+}
+```
+--
+count: false
+Now we can do this,
+```cpp
+fields["hello"_f];
+```
+---
+### Denoting sizes
+```cpp
+template <typename size_type>
+struct field_size {
+  using size_type_t = size_type;
+};
+
+template <std::size_t N>
+struct fixed {
+  static constexpr auto count = N;
+};
+
+template <fixed_string id>
+using len_from_field = field_accessor<id>;
+
+template <auto callable, typename req_fields>
+struct size_from_fields {
+  static constexpr auto f = callable;
+  static constexpr auto req_field_list = req_fields{};
+};
+```
+---
+We can denote
+--
+count: false
+- Name &#x2705
+--
+count: false
+- Size &#x2705
+--
+count: false
+- Type &#x2705
+--
+count: false
+
+```cpp
+template <
+  fixed_string id, 
+  typename T, 
+  typename size_type, 
+  auto constraint_on_value
+>
+struct field {
+  using field_type = T;
+  using field_size = size_type;
+
+  static constexpr auto field_id = id;
+  static constexpr auto constraint_checker = constraint_on_value;
+  field_type value{};
+};
+```
+--
+count: false
+```cpp
+s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>> &#x2705
 ```
 ---
 Link to project: [s2s](https://github.com/hariceratops/s2s)
