@@ -32,10 +32,10 @@ class: center, middle
 ### Hari Prasad Manoharan
 
 ---
-# whoami
+# About Me
 
 ```bash
-> cat whoami
+> whoami
 USER:hari
 COMPANY:mbition
 GIT:https://github.com/hariceratops/
@@ -400,15 +400,15 @@ struct_field_list(
 ---
 # Reality
 ```cpp
-s2s::struct_field_list<
-  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
-  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
->;
+* s2s::struct_field_list<
+*  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
+*  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
+* >;
 
-s2s::struct_field_list<
-  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
-  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
->;
+* s2s::struct_field_list<
+*  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
+*  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
+* >;
 
 s2s::struct_field_list<
   s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
@@ -426,18 +426,46 @@ s2s::struct_field_list<
 >;
 ```
 ---
-count: false
-### Lets focus on
-```cpp
-s2s::struct_field_list<
-  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
-  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
->;
+class: center, middle
 
-s2s::struct_field_list<
-  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
-  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
->;
+```cpp
+s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>
+```
+???
+- A fixed compile time string as field named
+- The type of the field
+- A size hint
+---
+### Construct for string template arguments
+```cpp
+template <std::size_t N>
+struct fixed_string {
+  std::array<char, N + 1> value;
+  constexpr fixed_string(): value{} {};
+  constexpr fixed_string(const char (&str)[N + 1]) {
+    std::copy_n(str, N + 1, value.data());
+  }
+  constexpr const char* data() const { return value.data(); }
+  constexpr char* data() { return value.data(); }
+  constexpr std::size_t size() const { return N; }
+  constexpr auto to_sv() -> std::string_view const {
+    return std::string_view{data()};
+  }
+};
+
+template <std::size_t N>
+fixed_string(const char (&)[N]) -> fixed_string<N - 1>;
+template <std::size_t N1, std::size_t N2>
+
+constexpr bool operator==(fixed_string<N1> lhs, fixed_string<N2> rhs) {
+  if constexpr(N1 != N2) return false;
+  return std::string_view{lhs.data()} == std::string_view{rhs.data()};
+}
+```
+---
+Link to project: [s2s](https://github.com/hariceratops/s2s)
+```cpp
+return 0;
 ```
 
     </textarea>
