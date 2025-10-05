@@ -50,6 +50,12 @@ ENGINEER_SINCE:2016_08_16
 - The views presented are not of my employer
 - Project is not production ready, at least not yet!
 - We will walkthrough the simplified version of the project source
+???
+- I have developing SW with C++ for past 6 years or so
+- The original project is close 5000 lines and would be not practical to go through it in a talk
+- But most metaprogramming talks still appear like magic
+- So the idea is to skim through the basic version
+- This way avoid first you draw circle and next step you end up with an owl
 ---
 ### How this came to be?
 - Parsing binary format is something any developer would run into at some point
@@ -338,6 +344,7 @@ void func(Args... args) {
 - func(args...) => func(arg_1, arg_2, ..., arg_n)
 - func(args)... => func(arg_1), func(arg_2), func(arg_3) ... func(arg_n)
 - If you have different sized parameter packs, they shall be of same size
+- Parameter packs can be expanded into binary operation using left or right fold expression according to required associativity
 - An excellent talk by Miro Knejp [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8)
 --
 count: false
