@@ -54,7 +54,7 @@ ENGINEER_SINCE:2016_08_16
 ### How this came to be?
 - Parsing binary format is something any developer would run into at some point
 - No declarative way to describe a binary format in C++
-- Inspired by 
+- Came across
   - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
   - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
   - [Value Based Metaprogramming, Kris Jusiak](https://www.youtube.com/watch?v=yriNqhv-oM0)
@@ -329,7 +329,7 @@ struct type_list {};
 ### Metafunctions
 A function executed in compile time 
 - which takes types or values known at compile time as input
-- returns types or values known at compiler time
+- returns types or values known at compile time
 - typically implemented with class templates, specializations and using aliases
 ```
 f(T) => T | V
@@ -556,6 +556,7 @@ s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>> &#x2705
 ### Struct
 ```cpp
 template <typename... fields>
+  requires are_unique_fields_v<fields...>
 struct struct_field_list : fields... {
   template <typename field_accessor,
             typename field = field_lookup_v<
@@ -603,6 +604,52 @@ count: false
 - Not the prettiest error message, this is as good as it gets
 - In fact clang does a great job with being succtinct
 ---
+### How does the lookup work?
+```cpp
+struct field_lookup_failed {};
+
+template <typename ls, fixed_string id>
+struct field_lookup;
+
+template <fixed_string id>
+struct field_lookup<type_list<>, id> {
+  using type = field_lookup_failed;
+};
+template <fixed_string id, typename T, std::size_t size, typename... rest>
+struct field_lookup<type_list<field<id, T, size>, rest...>, id> {
+  using type = field<id, T, size>;
+};
+
+template <fixed_string id, typename head, typename... rest>
+struct field_lookup<type_list<head, rest...>, id> {
+  using type = typename field_lookup<field_list<rest...>, id>::type;
+};
+
+template <typename list, fixed_string id>
+using field_lookup_v = typename field_lookup<list, id>::type;
+```
+???
+- If we have exhausted the list, we have not found the field we are trying access in the struct- Since the names are ensured to be unique, it is guaranteed we will have just one hit for our field
+---
+```cpp
+enum error_reason {
+  buffer_exhaustion,
+  validation_failure,
+  type_deduction_failure
+};
+
+
+struct cast_error {
+  error_reason failure_reason;
+  std::string_view failed_at;
+};
+
+
+using rw_result = std::expected<void, error_reason>;
+using cast_result = std::expected<void, cast_error>;
+```
+---
+
 Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
