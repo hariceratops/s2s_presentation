@@ -366,6 +366,79 @@ inline constexpr bool is_optional_like_v = is_optional_like<T>::res;
 template <typename T>
 concept optional_like = is_optional_like_v<T>;
 ```
+---
+class: center, middle
+# Lets write our parser
+---
+### Our Dream [Spoiler - would stay as dream &#x1F605]
+```
+struct_field_list(
+  basic_field("a", u32, field_size(fixed(4))),
+  basic_field("b", u32, field_size(fixed(4)))
+);
+
+struct_field_list(
+  basic_field("len", std::size_t, field_size(fixed(8))),
+  str_field("str", field_size(len_from_field("len")))
+);
+
+struct_field_list(
+  basic_field("a", u32, field_size(fixed(4))),
+  basic_field("b", u32, field_size(fixed(4))),
+  variance(
+    "c",
+    type(
+      match_field("a"),
+      type_switch(
+        match_case(0xcafed00d, as_struct(inner_1)),
+        match_case(0xdeadbeef, as_struct(inner_2))
+      )
+    )
+  )
+);
+```
+---
+# Reality
+```cpp
+s2s::struct_field_list<
+  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
+  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
+>;
+
+s2s::struct_field_list<
+  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
+  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
+>;
+
+s2s::struct_field_list<
+  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
+  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>,
+  s2s::variance<
+    "c",
+    s2s::type<
+      s2s::match_field<"a">,
+      s2s::type_switch<
+        s2s::match_case<0xcafed00d, s2s::as_struct<inner_1>>,
+        s2s::match_case<0xdeadbeef, s2s::as_struct<inner_2>>
+      >
+    >
+  >
+>;
+```
+---
+count: false
+### Lets focus on
+```cpp
+s2s::struct_field_list<
+  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
+  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
+>;
+
+s2s::struct_field_list<
+  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
+  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
+>;
+```
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js">
