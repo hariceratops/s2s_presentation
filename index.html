@@ -582,6 +582,7 @@ count: false
 s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>> &#x2705
 ```
 ---
+class: middle
 ```cpp
 s2s::struct_field_list<
   s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
@@ -677,6 +678,7 @@ using field_lookup_v = typename field_lookup<list, id>::type;
 trying access in the struct
 - Since the names are ensured to be unique, it is guaranteed we will have just one hit for our field
 ---
+class: middle
 ```cpp
 s2s::struct_field_list<
   s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
