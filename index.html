@@ -707,6 +707,12 @@ struct cast_error {
 
 using rw_result = std::expected<void, error_reason>;
 using cast_result = std::expected<void, cast_error>;
+
+constexpr auto operator|(const cast_result& res, auto&& callable)
+  -> cast_result
+{
+  return res ? callable() : std::unexpected(res.error());
+}
 ```
 ---
 ```cpp
@@ -801,6 +807,34 @@ Field Descriptors
     return 0;
   }
 ```
+---
+### What we achieved
+- constexpr! as much as possible &#x2705
+--
+count: false
+- Support for
+  - Trivial&#x2705
+  - Array of trivials&#x2705
+  - Array of records&#x2705
+  - Length prefixed vector of trivials&#x2705
+  - Length prefixed vector of records&#x2705
+  - Const sized strings&#x2705
+  - Length prefixed strings&#x2705
+  - Optionals&#x2705
+  - Unions&#x2705
+  - Magic strings and numbers&#x2705
+--
+count: false
+- Validation of fields in place while reading&#x2705
+--
+count: false
+- Compile time endianness handling &#x2705
+--
+count: false
+- Pluggable interfaces working with custom streams&#x2705
+--
+count: false
+- Normal member access &#x274C 
 ---
 ### Benchmarks
 todo
