@@ -40,7 +40,7 @@ USER:hari
 COMPANY:mbition
 GIT:https://github.com/hariceratops/
 LINKEDIN:https://www.linkedin.com/in/hari-prasad-manoharan-79a4ba102/
-MASTODAN:@hariceratops@mastadon.social
+MASTODON:@hariceratops@mastodon.social
 PRIMARY_DOMAIN:embedded_systems
 ENGINEER_SINCE:2016_08_16
 ```
@@ -53,7 +53,8 @@ ENGINEER_SINCE:2016_08_16
 - We will walkthrough the simplified version of the project source
 ???
 - I have been developing SW with C++ for past 6 years or so
-- The original project is close to 5000 lines and would be not practical to go through it in a talk
+- The original project is close to 5000 lines and would be not practical 
+to go through it in a talk
 - But most metaprogramming talks still appear like magic
 - So the idea is to skim through the basic version
 - This way avoid first you draw circle and next step you end up with an owl
@@ -325,7 +326,8 @@ class: center, middle
 ### &#x26A0 Template Metaprogramming Ahead!
 ???
 - I have had love-hate relationship with TMP
-- Whenever I write template typename ..., I get faces, I mean not angry faces, but not happy faces
+- Whenever I write template typename ..., I get faces, I mean not angry faces, 
+but not happy faces
 - I do get the sentiment here, they are hard to get right, slower compile times
 - But TMP has its place, like our little project
 ---
@@ -345,7 +347,8 @@ void func(Args... args) {
 - func(args...) => func(arg_1, arg_2, ..., arg_n)
 - func(args)... => func(arg_1), func(arg_2), func(arg_3) ... func(arg_n)
 - If you have different sized parameter packs, they shall be of same size
-- Parameter packs can be expanded into binary operation using left or right fold expression according to required associativity
+- Parameter packs can be expanded into binary operation using left or right 
+fold expression according to required associativity
 - An excellent talk by Miro Knejp [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8)
 --
 count: false
@@ -365,8 +368,7 @@ A function executed in compile time
 - returns types or values known at compile time
 - typically implemented with class templates, specializations and using aliases
 ```
-f(T) => T | V
-f(V) => T | V
+f(T | V_comp_time) => T | V_comp_time
 ```
 --
 count: false
@@ -414,7 +416,7 @@ concept optional_like = is_optional_like_v<T>;
 class: center, middle
 # Lets write our parser
 ---
-### Our Dream [Spoiler - would stay as dream &#x1F605]
+### Our Dream [Spoiler - would stay as dream for now &#x1F605]
 ```
 struct_field_list(
   basic_field("a", u32, field_size(fixed(4))),
@@ -526,6 +528,8 @@ constexpr auto operator""_f() {
 count: false
 Now we can do this,
 ```cpp
+// if a hypotheical type supports a square bracket 
+// operator with field_accessor as input argument 
 fields["hello"_f];
 ```
 ---
@@ -543,12 +547,6 @@ struct fixed {
 
 template <fixed_string id>
 using len_from_field = field_accessor<id>;
-
-template <auto callable, typename req_fields>
-struct size_from_fields {
-  static constexpr auto f = callable;
-  static constexpr auto req_field_list = req_fields{};
-};
 ```
 ---
 We can denote
@@ -568,15 +566,13 @@ count: false
 template <
   fixed_string id, 
   typename T, 
-  typename size_type, 
-  auto constraint_on_value
+  typename size_type
 >
 struct field {
   using field_type = T;
   using field_size = size_type;
 
   static constexpr auto field_id = id;
-  static constexpr auto constraint_checker = constraint_on_value;
   field_type value{};
 };
 ```
@@ -586,10 +582,18 @@ count: false
 s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>> &#x2705
 ```
 ---
+```cpp
+s2s::struct_field_list<
+  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
+  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
+>;
+```
+---
+count: false
 ### Struct
 ```cpp
 template <typename... fields>
-  requires are_unique_fields_v<fields...>
+  requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
 struct struct_field_list : fields... {
   template <typename field_accessor,
             typename field = field_lookup_v<
@@ -611,9 +615,16 @@ struct struct_field_list : fields... {
   }
 };
 ```
+???
+- Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
+- Will skip the complete walkthrough for are_unique_fields_v and size_dependencies_resolved_v
+- They are metafunctions to 
+  - check if there are no repetition in field names 
+  - if a field depends on another field for its size, then the dependency occurs strictly to left
 ---
 ### How the accessor[] works here?
-Static casting the "struct" which is inherited from multiple fields to one valid field, leads to object slicing and only the base field from which struct was inherited is returned by reference
+Static casting the "struct" which is inherited from multiple fields to one valid field, 
+leads to object slicing and only the base field from which struct was inherited is returned by reference
 .center[![valid_cast](./images/cast_valid_object_slicing.png)]
 ---
 count: false
@@ -662,7 +673,17 @@ template <typename list, fixed_string id>
 using field_lookup_v = typename field_lookup<list, id>::type;
 ```
 ???
-- If we have exhausted the list, we have not found the field we are trying access in the struct- Since the names are ensured to be unique, it is guaranteed we will have just one hit for our field
+- If we have exhausted the list, we have not found the field we are 
+trying access in the struct
+- Since the names are ensured to be unique, it is guaranteed we will have just one hit for our field
+---
+```cpp
+s2s::struct_field_list<
+  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
+  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
+>;
+```
+&#x2705
 ---
 ### Errors
 ```cpp
@@ -683,6 +704,20 @@ using rw_result = std::expected<void, error_reason>;
 using cast_result = std::expected<void, cast_error>;
 ```
 ---
+```cpp
+char* byte_addressof(T& obj) {
+  return reinterpret_cast<char*>(&obj);
+}
+
+template <typename T, std::size_t N>
+char* byte_addressof(std::array<T, N>& obj) {
+  return reinterpret_cast<char*>(obj.data());
+}
+
+/* other overloads */
+// todo size deduction utilities
+```
+---
 ### We read atlast
 ```cpp
 template <typename... args>
@@ -692,6 +727,7 @@ template <typename... fields, typename stream, auto endianness>
 struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
   using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
+
   constexpr auto operator()(stream& s) -> R {
     S field_list;
     cast_result pipeline_seed{};
@@ -717,27 +753,56 @@ if constexpr (is_struct_field_list_v<extract_type_from_field_v<fields>>) {
   using inner_struct = extract_type_from_field_v<fields>>;
   auto field_value = struct_cast<inner_struct>(ifs);
   if(!field_value)  
-    return std::unexpected(buffer_exhaustion);
-  read_res = true;
+    return std::unexpected(field_value.error());
 } else if constexpr (is_comptime_sized_field_v<fields>) {
-  constexpr auto read_size = field_size::size_type_t::count;
-  char* dst = reinterpret_cast<char*>(field.value.data());
-  read_res = ifs.read(dst, read_size);
+  // constexpr auto read_size = field_size::size_type_t::count;
+  read_res = ifs.read(byte_addressof(field.value), read_size);
 } else if constexpr (is_runtime_sized_field_v<fields>) {
   constexpr auto len_to_read = deduce_field_size<field_size>{}(input);
   constexpr auto read_size = len_to_read * sizeof(field.value);
-  char* dst = reinterpret_cast<char*>(field.value.data());
-  read_res = ifs.read(dst, read_size);
-} else if constexpr (is_comptime_sized_field_v<fields>) {
-  constexpr auto read_size = field_size::size_type_t::count;
-  char* dst = reinterpret_cast<char*>(field.value);
-  read_res = ifs.read(dst, read_size);
+  read_res = ifs.read(byte_addressof(field.value), read_size);
 }
 
 if(!read_res) /* ... */
 ```
 ---
+Cast
+---
+Field Descriptors
+---
+### Et viola
+```cpp
+  #include "s2s.hpp"
+  #include <print>
 
+  using namespace s2s_literals;
+
+  auto main(void) -> int {
+*   using our_struct = 
+*     s2s::struct_field_list<
+*       s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
+*       s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
+*     >;
+    std::ifstream ifs("sample.bin", std::ios::in | std::ios::binary);
+    auto res = 
+*     s2s::struct_cast_le<our_struct>(ifs)
+          .transform([](const our_struct& fields){
+            std::println("len={} str={}", fields["len"_f], fields["str"_f]);
+            return fields;
+          }).transform_error([](const s2s::cast_error& err){
+            std::println("failure_reason={} failed_at={}", static_cast<int>(err.failure_reason), err.failed_at);
+            return err;
+          });
+    return 0;
+  }
+```
+---
+### Benchmarks
+todo
+---
+### &#x1F381 = Reflection
+todo
+---
 Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
