@@ -429,7 +429,6 @@ struct_field_list(
   basic_field("a", u32, field_size(fixed(4))),
   basic_field("b", u32, field_size(fixed(4)))
 );
-
 struct_field_list(
   basic_field("len", std::size_t, field_size(fixed(8))),
   str_field("str", field_size(len_from_field("len")))
@@ -438,8 +437,7 @@ struct_field_list(
 struct_field_list(
   basic_field("a", u32, field_size(fixed(4))),
   basic_field("b", u32, field_size(fixed(4))),
-  variance(
-    "c",
+  variance("c",
     type(
       match_field("a"),
       type_switch(
@@ -623,38 +621,6 @@ struct struct_field_list : fields... {
   }
 };
 ```
-???
-- Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
-- Will skip the complete walkthrough for are_unique_fields_v and size_dependencies_resolved_v
-- They are metafunctions to 
-  - check if there are no repetition in field names 
-  - if a field depends on another field for its size, then the dependency occurs strictly to left
----
-### How the accessor[] works here?
-Static casting the "struct" which is inherited from multiple fields to one valid field, 
-leads to object slicing and only the base field from which struct was inherited is returned by reference
-.center[![valid_cast](./images/cast_valid_object_slicing.png)]
----
-count: false
-.center[![invalid_cast](./images/cast_invalid_object_slicing.png)]
-
-```sh
-<source>:33:24: error: no viable overloaded operator[] for type 's2s::struct_field_list_impl<2UL, s2s::field<fixed_string<2UL - 1>{{"a"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>, s2s::field<fixed_string<2UL - 1>{{"b"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>> const'
-   33 |     std::cout << fields["e"_f] << fields["b"_f];
-      |                  ~~~~~~^~~~~~
-/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2181:19: note: candidate function template not viable: 'this' argument has type 's2s::struct_field_list_impl<2UL, s2s::field<fixed_string<2UL - 1>{{"a"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>, s2s::field<fixed_string<2UL - 1>{{"b"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>> const', but method is not marked const
- 2181 |   constexpr auto& operator[](field_accessor)  {
-      |                   ^
-/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2191:25: note: candidate template ignored: constraints not satisfied [with field_accessor = s2s::field_accessor<s2s::fixed_string<2UL - 1>{{"e"}}>, field_lookup_res = static_optional<field_type_info>{{0, 0}, false}]
- 2191 |   constexpr const auto& operator[](field_accessor) const {
-      |                         ^
-/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2190:15: note: because 'static_optional<field_type_info>{{0, 0}, false}.has_value' evaluated to false
- 2190 |     requires (!std::is_same_v<field_lookup_failed, field>)
-      |
-```
-???
-- Not the prettiest error message, this is as good as it gets
-- In fact clang does a great job with being succtinct
 ---
 ### How does the lookup work?
 ```cpp
@@ -687,6 +653,39 @@ trying access in the struct
 ---
 ### How uniqueness and dependencies are guaranteed
 ##&#x1F44B
+
+???
+- Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
+- Will skip the complete walkthrough for are_unique_fields_v and size_dependencies_resolved_v
+- They are metafunctions to 
+  - check if there are no repetition in field names 
+  - if a field depends on another field for its size, then the dependency occurs strictly to left
+---
+### How the accessor[] works here?
+Static casting the "struct" which is inherited from multiple fields to one valid field, 
+leads to object slicing and only the base field from which struct was inherited is returned by reference
+.center[![valid_cast](./images/cast_valid_object_slicing.png)]
+---
+count: false
+.center[![invalid_cast](./images/cast_invalid_object_slicing.png)]
+
+```sh
+<source>:33:24: error: no viable overloaded operator[] for type 's2s::struct_field_list_impl<2UL, s2s::field<fixed_string<2UL - 1>{{"a"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>, s2s::field<fixed_string<2UL - 1>{{"b"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>> const'
+   33 |     std::cout << fields["e"_f] << fields["b"_f];
+      |                  ~~~~~~^~~~~~
+/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2181:19: note: candidate function template not viable: 'this' argument has type 's2s::struct_field_list_impl<2UL, s2s::field<fixed_string<2UL - 1>{{"a"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>, s2s::field<fixed_string<2UL - 1>{{"b"}}, unsigned int, s2s::field_size<s2s::fixed<4>>, no_constraint<u32>{}>> const', but method is not marked const
+ 2181 |   constexpr auto& operator[](field_accessor)  {
+      |                   ^
+/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2191:25: note: candidate template ignored: constraints not satisfied [with field_accessor = s2s::field_accessor<s2s::fixed_string<2UL - 1>{{"e"}}>, field_lookup_res = static_optional<field_type_info>{{0, 0}, false}]
+ 2191 |   constexpr const auto& operator[](field_accessor) const {
+      |                         ^
+/app/raw.githubusercontent.com/hariceratops/s2s/main/single_header/s2s.hpp:2190:15: note: because 'static_optional<field_type_info>{{0, 0}, false}.has_value' evaluated to false
+ 2190 |     requires (!std::is_same_v<field_lookup_failed, field>)
+      |
+```
+???
+- Not the prettiest error message, this is as good as it gets
+- In fact clang does a great job with being succtinct
 ---
 class: middle
 ```cpp
