@@ -51,8 +51,8 @@ ENGINEER_SINCE:2016_08_16
 - Project is not production ready, at least not yet!
 - We will walkthrough the simplified version of the project source
 ???
-- I have developing SW with C++ for past 6 years or so
-- The original project is close 5000 lines and would be not practical to go through it in a talk
+- I have been developing SW with C++ for past 6 years or so
+- The original project is close to 5000 lines and would be not practical to go through it in a talk
 - But most metaprogramming talks still appear like magic
 - So the idea is to skim through the basic version
 - This way avoid first you draw circle and next step you end up with an owl
@@ -339,8 +339,8 @@ void func(Args... args) {
   auto k = func_b(func_c(args)...);
 }
 ```
-- ... before template variable in the template declaration denotes definition
-- ... after template variable in the body of the template denotes expansion
+- ... before template parameter pack in the template declaration denotes definition
+- ... after template paramter pack in the body of the template denotes expansion
 - func(args...) => func(arg_1, arg_2, ..., arg_n)
 - func(args)... => func(arg_1), func(arg_2), func(arg_3) ... func(arg_n)
 - If you have different sized parameter packs, they shall be of same size
@@ -663,6 +663,7 @@ using field_lookup_v = typename field_lookup<list, id>::type;
 ???
 - If we have exhausted the list, we have not found the field we are trying access in the struct- Since the names are ensured to be unique, it is guaranteed we will have just one hit for our field
 ---
+### Errors
 ```cpp
 enum error_reason {
   buffer_exhaustion,
@@ -681,13 +682,14 @@ using rw_result = std::expected<void, error_reason>;
 using cast_result = std::expected<void, cast_error>;
 ```
 ---
+### We read atlast
 ```cpp
 template <typename... args>
 struct struct_cast_impl;
-// Needs rework
+
 template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<fields..., stream, endianness> {
-  using S = struct_field_list_impl<fields...>;
+struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+  using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
   constexpr auto operator()(stream& s) -> R {
     S field_list;
@@ -698,12 +700,6 @@ struct struct_cast_impl<fields..., stream, endianness> {
       [&]() -> cast_result {
         auto& field = static_cast<fields&>(field_list);
         // Some read magic here &#x1FA84
-        if(!read_res) {
-          auto field_name = std::string_view{fields::field_id.data()};
-          auto err = read_res.error();
-          auto validation_err = cast_error{err, field_name};
-          return std::unexpected(validation_err);
-        }
         return {};
       }
     );
@@ -713,6 +709,52 @@ struct struct_cast_impl<fields..., stream, endianness> {
 ```
 ???
 - Short circuit the remaining pipeline since read failed for current field
+---
+```cpp
+bool read_res = false;
+if constexpr (is_struct_field_list_v<extract_type_from_field_v<fields>>) {
+  using inner_struct = extract_type_from_field_v<fields>>;
+  auto field_value = struct_cast<inner_struct>(ifs);
+  if(!field_value)  
+    return std::unexpected(buffer_exhaustion);
+  read_res = true;
+} else if constexpr (is_comptime_sized_field_v<fields>) {
+  constexpr auto read_size = field_size::size_type_t::count;
+  char* dst = reinterpret_cast<char*>(field.value.data());
+  read_res = ifs.read(dst, read_size);
+} else if constexpr (is_runtime_sized_field_v<fields>) {
+  constexpr auto len_to_read = deduce_field_size<field_size>{}(input);
+  constexpr auto read_size = len_to_read * sizeof(field.value);
+  char* dst = reinterpret_cast<char*>(field.value.data());
+  read_res = ifs.read(dst, read_size);
+} else if constexpr (is_comptime_sized_field_v<fields>) {
+  constexpr auto read_size = field_size::size_type_t::count;
+  char* dst = reinterpret_cast<char*>(field.value);
+  read_res = ifs.read(dst, read_size);
+}
+
+if(!read_res) /* ... */
+```
+---
+
+Link to project: [s2s](https://github.com/hariceratops/s2s)
+```cpp
+return 0;
+```
+???
+- Dont be afraid to do a project, even at the cost of failing
+- It takes a village
+
+
+    </textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js">
+    </script>
+    <script>
+} else if constexpr (is_runtime_sized_field_v<fields>) {
+  auto len_to_read = deduce_field_size<field_size>{}(input);
+  field_value = read<field_type>(ifs, len_to_read);
+}
+```
 ---
 
 Link to project: [s2s](https://github.com/hariceratops/s2s)
