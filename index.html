@@ -60,26 +60,32 @@ ENGINEER_SINCE:2016_08_16
 - We will walkthrough the simplified version of the project source
 ???
 - I have been developing SW with C++ for past 6 years or so
-- The original project is close to 5000 lines and would be not practical 
-to go through it in a talk
-- But most metaprogramming talks still appear like magic
-- So the idea is to skim through the basic version
-- This way avoid first you draw circle and next step you end up with an owl
+  So take my advice with a pinch of salt 
+- We walkthrough a simplified version of the project because
+  - The original project is close to 5000 lines and would be not practical 
+  to go through it in a talk
+  - Most metaprogramming talks still appear like magic, so the idea is to skim through the basic version
+    to cover as much details as possible
+  - This way avoid the famous meme, first you draw circle and next step you end up with an owl
 ---
 ### How this came to be?
 - Parsing binary format is something any developer would run into at some point
 - No declarative way to describe a binary format in C++
+- What is more fun than writing something from scratch?
 - Came across following projects which led to some solid work
   - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
   - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
   - [Value Based Metaprogramming, Kris Jusiak](https://www.youtube.com/watch?v=yriNqhv-oM0)
 ???
 - Too much boiler plate if handwritten, code generation was not appealing
-- As a side note, watch talks, attend conferences and meet people
 - Thanks to Kris, Hana
+- As a side note, watch talks, attend conferences and meet people
 ---
 class: center, middle
 # Fact Check!
+???
+- I wanted to do a quiz since I was planning a onsite talk
+  but I will have to turn it into fact check
 ---
 ```cpp
 struct some_thing {
@@ -224,6 +230,8 @@ auto main(void) -> int {
   file.close();
 };
 ```
+???
+- Lets clean it up for readability
 ---
 Lets throw this to our code
 ```sh
@@ -263,7 +271,7 @@ struct some_thing {
   uint32_t member_1;
   bool member_2;
   // Has to be parsed only if member_2 == true
-  uint32_t member_3;
+  std::optional<uint32_t> member_3;
 };
 ```
 --
@@ -334,7 +342,7 @@ class: center, middle
 ???
 - I have had love-hate relationship with TMP
 - Whenever I write template typename ..., I get faces, I mean not angry faces, 
-but not happy faces
+  but not happy faces
 - I do get the sentiment here, they are hard to get right, slower compile times
 - But TMP has its place, like our little project
 ---
@@ -348,6 +356,8 @@ void func(Args... args) {
   auto l = func_a(args...);
   auto k = func_b(func_c(args)...);
 }
+--
+count: false
 ```
 - ... before template parameter pack in the template declaration denotes definition
 - ... after template paramter pack in the body of the template denotes expansion
@@ -365,6 +375,7 @@ template <typename... Args>
 struct type_list {};
 ```
 ???
+- todo definition of variadic templates and functions
 - Variadic functions are everywhere. make_unique, make_shared you name it
 - Store arbitrary number of types in this placeholder list
 - This along with pack manipulation would be one of the central concept for the library
@@ -393,6 +404,8 @@ struct remove_cvref {
   using type = std::remove_cv_t<std::remove_reference_t<T>>;
 };
 ```
+???
+- Results of one metafunction can be passed to other metafunctions
 ---
 count: false
 It is possible to roll out one's own metafunction
