@@ -64,9 +64,11 @@ ENGINEER_SINCE:2016_08_16
 - We walkthrough a simplified version of the project because
   - The original project is close to 5000 lines and would be not practical 
   to go through it in a talk
-  - Most metaprogramming talks still appear like magic, so the idea is to skim through the basic version
+  - Most metaprogramming talks still appear like magic, so the idea is to 
+    skim through the basic version
     to cover as much details as possible
-  - This way we avoid the famous meme, first you draw circle and next step you end up with an owl
+  - This way we avoid the famous meme, first you draw circle and next 
+    step you end up with an owl
 ---
 ### How this came to be?
 - Parsing binary format is something any developer would run into at some point
@@ -575,6 +577,16 @@ struct struct_field_list : fields... {
 };
 ```
 ---
+### How uniqueness and dependencies are guaranteed
+##&#x1F44B
+- They are metafunctions to 
+  - check if there are no repetition in field names 
+  - if a field depends on another field for its size, then the dependency occurs strictly to left
+
+???
+- Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
+- Will skip the complete walkthrough for are_unique_fields_v and size_dependencies_resolved_v
+---
 ### How does the lookup work?
 ```cpp
 struct field_lookup_failed {};
@@ -603,16 +615,6 @@ using field_lookup_v = typename field_lookup<list, id>::type;
 - If we have exhausted the list, we have not found the field we are 
 trying access in the struct
 - Since the names are ensured to be unique, it is guaranteed we will have just one hit for our field
----
-### How uniqueness and dependencies are guaranteed
-##&#x1F44B
-
-???
-- Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
-- Will skip the complete walkthrough for are_unique_fields_v and size_dependencies_resolved_v
-- They are metafunctions to 
-  - check if there are no repetition in field names 
-  - if a field depends on another field for its size, then the dependency occurs strictly to left
 ---
 ### How the accessor[] works here?
 Static casting the "struct" which is inherited from multiple fields to one valid field, 
@@ -887,7 +889,7 @@ struct [[=readable_from_stream]] Dog {
   [[=requires_value("DOG")]]
   fixed_string<3> magic;
   uint8_t bone_pile_count;
-  [[=field_len("len"), =endian("be")]]
+  [[=field_len("bone_pile_count"), =endian("be")]]
   bone_piles: Vec<u16>;
 }
 ```
@@ -932,6 +934,7 @@ return 0;
 ???
 - The godbolt execution doesnt timeout
 - Dont be afraid to do a project, even at the cost of failing
+- It is fun, you can crash compilers, text editors
 - It takes a village
 - So I would be happy to collaborate and extend the project
 
