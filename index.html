@@ -330,7 +330,7 @@ printf("%s %s\n", h.left_hand, h.right_hand);
 .center[![dr_strange](./images/dr_strange.gif)]
 ---
 ### Possible Solutions
-- Custom DSL 
+- Existing DSL like [Kaitai](https://doc.kaitai.io/user_guide.html)
 - Rolling out a custom DSL and code generator
 - Template Metaprogramming Magic
 - &#x1F381
@@ -347,92 +347,29 @@ class: center, middle
 - But TMP has its place, like our little project
 ---
 class: center, middle
-# TMP Primer
+# TMP Primer Materials
 ---
-### Variadic Templates
-```cpp
-template <typename... Args>
-void func(Args... args) {
-  auto l = func_a(args...);
-  auto k = func_b(func_c(args)...);
-}
---
-count: false
-```
-- ... before template parameter pack in the template declaration denotes definition
-- ... after template paramter pack in the body of the template denotes expansion
-- func(args...) => func(arg_1, arg_2, ..., arg_n)
-- func(args)... => func(arg_1), func(arg_2), func(arg_3) ... func(arg_n)
-- If you have different sized parameter packs, they shall be of same size
-- Parameter packs can be expanded into binary operation using left or right 
-fold expression according to required associativity
-- An excellent talk by Miro Knejp [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8)
---
-count: false
+### A few excellent talks
+- Variadic Templates
+  - [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8) by Miro Knejp
+- Metafunctions 
+  - [Compile Time Function Programming](https://www.youtube.com/watch?v=WtHWFoKf8o0) by Bartosz Milewski, Eric Niebler 
 
-```cpp
-template <typename... Args>
-struct type_list {};
-```
 ???
+- It is not mandatory to know these concepts before hand for the talk
+- But in case if the topics are unfamiliar here are some great talks online to 
+  get a grasp of them
 - todo definition of variadic templates and functions
-- Variadic functions are everywhere. make_unique, make_shared you name it
-- Store arbitrary number of types in this placeholder list
-- This along with pack manipulation would be one of the central concept for the library
----
-### Metafunctions
-A function executed in compile time 
-- which takes types or values known at compile time as input
-- returns types or values known at compile time
-- typically implemented with class templates, specializations and using aliases
-```
-f(T | V_comp_time) => T | V_comp_time
-```
---
-count: false
-Typical example, from the STL
-```cpp
-template< class T >
-using remove_cv_t = typename remove_cv<T>::type;
-```
---
-count: false
-Metafunctions are composable
-```cpp
-template<class T>
-struct remove_cvref {
-  using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
-```
-???
-- Results of one metafunction can be passed to other metafunctions
----
-count: false
-It is possible to roll out one's own metafunction
-```cpp
-template <typename T>
-struct is_optional_like;
-
-template <typename T>
-struct is_optional_like {
-  static inline constexpr bool res = false;
-};
-
-template <typename T>
-struct is_optional_like<std::optional<T>> {
-  static inline constexpr bool res = true;
-};
-
-template <typename T>
-inline constexpr bool is_optional_like_v = is_optional_like<T>::res;
-
-template <typename T>
-concept optional_like = is_optional_like_v<T>;
-```
-???
+- Lets you define list which can hold types
+- Parameter packs can be expanded into binary operation using left or right 
+  fold expression according to required associativity
 - One can roll out a function to search a type_list with a predicate
-- Sort it
+- A function executed in compile time 
+  - which takes types or values known at compile time as input
+  - returns types or values known at compile time
+  - typically implemented with class templates, specializations and using aliases
 ---
+
 class: center, middle
 # Lets write our parser
 ---
@@ -930,16 +867,73 @@ count: false
 ### Benchmarks
 todo
 ---
-### &#x1F381 = Reflection
-todo
+### &#x1F381 = Reflection &#x2661
+- C++26 or future promises
+  - [Static Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2996r0.html)
+  - [Annotation for Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p3394r0.html)
+- Lets you write readable annotation similar to Rust
+
+``` rust
+#[derive(BinRead)]
+#[br(magic = b"DOG", assert(name.len() != 0))]
+struct Dog {
+    bone_pile_count: u8,
+    #[br(big, count = bone_pile_count)]
+    bone_piles: Vec<u16>,
+}
+```
+``` cpp
+struct [[=readable_from_stream]] Dog {
+  [[=requires_value("DOG")]]
+  fixed_string<3> magic;
+  uint8_t bone_pile_count;
+  [[=field_len("len"), =endian("be")]]
+  bone_piles: Vec<u16>;
+}
+```
+???
+- Obliged to bring Rust in the talk
+- Enables introspection and annotation but no code generation 
+- No token injection like rust proc macros but
+  we have our good old friend templates
+- Detach the user facing API and still let the new code
+  use our template based parser generator underneath
+---
+### In a galaxy not so far away!
+```cpp
+  #include "s2s.hpp"
+  #include <print>
+
+* struct [[=readable_from_stream]] Dog {
+*   std::size_t len;
+*   [[=field_len("len")]]
+*   std::string str;
+* }
+
+  auto main(void) -> int {
+    std::ifstream ifs("sample.bin", std::ios::in | std::ios::binary);
+    auto res = 
+*     s2s::struct_cast<our_struct>(ifs)
+          .transform([](const our_struct& fields){
+*           std::println("len={} str={}", fields.len, fields.str);
+            return fields;
+          }).transform_error([](const s2s::cast_error& err){
+            std::println("failure_reason={} failed_at={}", static_cast<int>(err.failure_reason), err.failed_at);
+            return err;
+          });
+    return 0;
+  }
+```
 ---
 Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
 ```
 ???
+- The godbolt execution doesnt timeout
 - Dont be afraid to do a project, even at the cost of failing
 - It takes a village
+- So I would be happy to collaborate and extend the project
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js">
