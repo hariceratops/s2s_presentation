@@ -66,7 +66,7 @@ ENGINEER_SINCE:2016_08_16
   to go through it in a talk
   - Most metaprogramming talks still appear like magic, so the idea is to skim through the basic version
     to cover as much details as possible
-  - This way avoid the famous meme, first you draw circle and next step you end up with an owl
+  - This way we avoid the famous meme, first you draw circle and next step you end up with an owl
 ---
 ### How this came to be?
 - Parsing binary format is something any developer would run into at some point
@@ -553,6 +553,9 @@ fields["hello"_f];
 ---
 ### Denoting sizes
 ```cpp
+// Private, useful for struct fields
+struct size_dont_care {};
+
 template <typename size_type>
 struct field_size {
   using size_type_t = size_type;
@@ -733,18 +736,31 @@ constexpr auto operator|(const cast_result& res, auto&& callable)
 }
 ```
 ---
+### Utilities to calculate address and size of fields
 ```cpp
 char* byte_addressof(T& obj) {
   return reinterpret_cast<char*>(&obj);
 }
+/* other overloads
+std::array<T, N> -> return reinterpret_cast<char*>(&obj.data());
+*/
 
-template <typename T, std::size_t N>
-char* byte_addressof(std::array<T, N>& obj) {
-  return reinterpret_cast<char*>(obj.data());
-}
+struct deduce_field_size;
 
-/* other overloads */
-// todo size deduction utilities
+template <std::size_t N>
+struct deduce_field_size<field_size<fixed<N>>> {
+  constexpr auto operator()() -> std::size_t {
+    return N;
+  }
+};
+
+template <fixed_string id>
+struct deduce_field_size<field_size<field_accessor<id>>> {
+  template <typename... fields>
+  constexpr auto operator()(const struct_field_list<fields...>& struct_fields) -> std::size_t {
+    return struct_fields[field_accessor<id>{}];
+  }
+};
 ```
 ---
 ### We read atlast
@@ -766,7 +782,6 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
       [&]() -> cast_result {
         auto& field = static_cast<fields&>(field_list);
         // Some read magic here &#x1FA84
-        return {};
       }
     );
     return res ? R(field_list) : std::unexpected(res.error());
@@ -795,11 +810,69 @@ if constexpr (is_struct_field_list_v<extract_type_from_field_v<fields>>) {
 if(!read_res) /* ... */
 ```
 ---
-Cast
+### User API - Cast
+```cpp
+template <field_list_like T, input_stream_like stream>
+[[nodiscard]] constexpr auto struct_cast(stream& s) -> std::expected<T, cast_error> {
+  return struct_cast_impl<T, stream>{}(s);
+}
+```
+
+???
+- These are user facing APIs with constraints to avoid misuse and provide relatively
+  clean error messages
 ---
-Field Descriptors
+### User API - Field Descriptors
+```cpp
+concept field_fits_to_underlying_type =
+  deduce_field_size<size>{}() <= sizeof(field_type);
+
+template <fixed_string id, integral T, fixed_size_like size_type>
+  requires field_fits_to_underlying_type<size_type, T>
+using basic_field = field<id, T, size_type>;
+
+template <fixed_string id, field_containable T, std::size_t N>
+using fixed_array_field = 
+  field<id, std::array<T, N>, field_size<fixed<N * sizeof(T)>>>;
+
+template <fixed_string id, std::size_t N>
+using fixed_string_field = 
+  field<id, fixed_string<N>, field_size<fixed<N + 1>>>;
+
+template <fixed_string id, typename T, variable_size_like size>
+using vec_field = field<id, std::vector<T>, size>;
+
+template <fixed_string id, variable_size_like size>
+using str_field = field<id, std::string, size>;
+
+template <fixed_string id, field_list_like T>
+using struct_field = field<id, T, field_size<size_dont_care>>;
+
+```
+???
+- Just like the cast function we add some user facing Meta-APIs
+  for describing fields
+- For example we have a basic field which ensures that users cant read bytes more
+  than the actual size of the trivial type
+- Similarly we can make the user's life easy by not having them to calculate
+  number of bytes to read in case of array types, they can simply provide the number of
+  elements and library would provide a MetaAPI to wrap the size calculation
 ---
-### Et viola
+Field descriptors &#x2705
+--
+count: false
+, Data layout &#x2705
+--
+count: false
+, Cast API &#x2705
+--
+count: false
+, Cast implementation &#x2705
+--
+count: false
+
+Et viola!
+
 ```cpp
   #include "s2s.hpp"
   #include <print>
@@ -814,7 +887,7 @@ Field Descriptors
 *     >;
     std::ifstream ifs("sample.bin", std::ios::in | std::ios::binary);
     auto res = 
-*     s2s::struct_cast_le<our_struct>(ifs)
+*     s2s::struct_cast<our_struct>(ifs)
           .transform([](const our_struct& fields){
             std::println("len={} str={}", fields["len"_f], fields["str"_f]);
             return fields;
