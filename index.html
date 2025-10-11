@@ -5,10 +5,7 @@
     <title>Title</title>
     <meta charset="utf-8">
     <style>
-      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
       @import url(https://fonts.googleapis.com/css?family=Rubik);
-      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
-      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
       @import url(https://fonts.googleapis.com/css?family=Source+Code+Pro:400,700,400italic);
 
       body { font-family: 'Rubik'; }
@@ -47,7 +44,7 @@ ENGINEER_SINCE:2016_08_16
 ???
 - Working as a SWE in Mbition, a subsidiary of Mercedes
   developing Infotainment SW
-- At my team, we creating APIs for application developers
+- At my team, we are creating APIs for application developers
   to exchange data with other control units and try to abstract
   the underlying communication protocols and promote API
   reusability among car lines
@@ -296,6 +293,11 @@ auto parse_something(std::ifstream& file) -> parse_res {
 ```
 ---
 class: middle
+
+- Nested structs
+--
+
+count: false
 - Length prefixed vectors
 --
 
@@ -338,6 +340,13 @@ printf("%s %s\n", h.left_hand, h.right_hand);
 - &#x1F381
 ---
 .center[![i_like_this](./images/i_like_this.png)]
+
+???
+- But I chose TMP
+- Why?
+  - I wanted to explore the depths the language
+  - More importantly it is related to the little suprise I talked about in the
+    previous slide
 ---
 class: center, middle
 ### &#x26A0 Template Metaprogramming Ahead!
@@ -355,21 +364,21 @@ class: center, middle
 - Variadic Templates
   - [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8) by Miro Knejp
 - Metafunctions 
-  - [Compile Time Function Programming](https://www.youtube.com/watch?v=WtHWFoKf8o0) by Bartosz Milewski, Eric Niebler 
+  - [Compile Time Functional Programming](https://www.youtube.com/watch?v=WtHWFoKf8o0) by Bartosz Milewski, Eric Niebler 
 
 ???
 - It is not mandatory to know these concepts before hand for the talk
 - But in case if the topics are unfamiliar here are some great talks online to 
   get a grasp of them
 - todo definition of variadic templates and functions
-- Lets you define list which can hold types
 - Parameter packs can be expanded into binary operation using left or right 
   fold expression according to required associativity
-- One can roll out a function to search a type_list with a predicate
+- Lets you define list which can hold types
 - A function executed in compile time 
   - which takes types or values known at compile time as input
   - returns types or values known at compile time
   - typically implemented with class templates, specializations and using aliases
+- One can roll out a function to search a type_list with a predicate
 ---
 
 class: center, middle
@@ -536,6 +545,8 @@ struct field {
   field_type value{};
 };
 ```
+- The best thing here is that we can put another struct_field_list
+  inside our field, which makes nested structs possible
 --
 count: false
 ```cpp
@@ -582,6 +593,7 @@ struct struct_field_list : fields... {
 - They are metafunctions to 
   - check if there are no repetition in field names 
   - if a field depends on another field for its size, then the dependency occurs strictly to left
+- Not adhering to this constraints will result in compile time errors
 
 ???
 - Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
@@ -665,15 +677,18 @@ struct cast_error {
 };
 
 
-using rw_result = std::expected<void, error_reason>;
-using cast_result = std::expected<void, cast_error>;
+using read_result = std::expected<void, cast_error>;
 
-constexpr auto operator|(const cast_result& res, auto&& callable)
-  -> cast_result
+constexpr auto operator|(const read_result& res, auto&& callable)
+  -> read_result
 {
   return res ? callable() : std::unexpected(res.error());
 }
 ```
+
+???
+- Note that read_result is for individual fields,
+  not for the complete struct we wrote
 ---
 ### Utilities to calculate address and size of fields
 ```cpp
@@ -684,6 +699,7 @@ char* byte_addressof(T& obj) {
 std::array<T, N> -> return reinterpret_cast<char*>(&obj.data());
 */
 
+template <typename T>
 struct deduce_field_size;
 
 template <std::size_t N>
@@ -714,11 +730,11 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
 
   constexpr auto operator()(stream& s) -> R {
     S field_list;
-    cast_result pipeline_seed{};
+    read_result pipeline_seed{};
     auto res = (
       pipeline_seed |
       ... |
-      [&]() -> cast_result {
+      [&field_list]() -> read_result {
         auto& field = static_cast<fields&>(field_list);
         // Some read magic here &#x1FA84
       }
@@ -729,6 +745,7 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
 ```
 ???
 - Short circuit the remaining pipeline since read failed for current field
+- Box unwrapping diagram?
 ---
 ```cpp
 bool read_res = false;
@@ -748,6 +765,12 @@ if constexpr (is_struct_field_list_v<extract_type_from_field_v<fields>>) {
 
 if(!read_res) /* ... */
 ```
+???
+- "if constexpr" clauses which only satisfy the condition at compile time are
+  considered in the binary
+- If we have a nested struct, we might have to extract the struct type
+  from the field, since we need to pass the type of the struct as a 
+  template parameter to the recursive struct_cast function
 ---
 ### User API - Cast
 ```cpp
@@ -796,6 +819,7 @@ using struct_field = field<id, T, field_size<size_dont_care>>;
 - Similarly we can make the user's life easy by not having them to calculate
   number of bytes to read in case of array types, they can simply provide the number of
   elements and library would provide a MetaAPI to wrap the size calculation
+- This also in many ways avoid human errors
 ---
 Field descriptors &#x2705
 --
@@ -868,6 +892,9 @@ count: false
 ---
 ### Benchmarks
 todo
+???
+- But we are not quite done yet, remember the little suprised
+  we reserved for the end
 ---
 ### &#x1F381 = Reflection &#x2661
 - C++26 or future promises
@@ -895,11 +922,24 @@ struct [[=readable_from_stream]] Dog {
 ```
 ???
 - Obliged to bring Rust in the talk
+- binrw is an equivalent to our little project here
+- It uses Rust proc macros to annotate the structs with details needed
+  for parsing it from a stream and later generate code for the parser
+- But the difference is how the code is generated, proc macros
+  can read the tokens from your code, lets you to introspect them 
+  and inject tokens back into the AST
+- c++26 and beyond will support static reflection
 - Enables introspection and annotation but no code generation 
 - No token injection like rust proc macros but
   we have our good old friend templates
-- Detach the user facing API and still let the new code
+- One reason I wanted to write this project in c++23 with TMP
+  is, it can be easily ported to static reflection based implementation 
+- In fact the latest code on github relies on value based metaprogramming
+  which can be easily ported to the reflection proposal
+- Replace the user facing API with annotated structs and still let the new code
   use our template based parser generator underneath
+- This might be a partially breaking change, especially for user facing API
+  But it is for the greater good since it is readable
 ---
 ### In a galaxy not so far away!
 ```cpp
@@ -926,11 +966,19 @@ struct [[=readable_from_stream]] Dog {
     return 0;
   }
 ```
+???
+- In near future this should be possible
+- I plan to complete this experimental implementation or atleast explore
+  it limits by early 2026
 ---
 Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
 ```
+GIT:[hariceratops](https://github.com/hariceratops/)
+LINKEDIN:[Hari Prasad](https://www.linkedin.com/in/hari-prasad-manoharan-79a4ba102/)
+MASTODON:@hariceratops@mastodon.social
+
 ???
 - The godbolt execution doesnt timeout
 - Dont be afraid to do a project, even at the cost of failing
