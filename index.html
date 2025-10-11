@@ -702,15 +702,23 @@ std::array<T, N> -> return reinterpret_cast<char*>(&obj.data());
 template <typename T>
 struct deduce_field_size;
 
-template <std::size_t N>
-struct deduce_field_size<field_size<fixed<N>>> {
+template <fixed_string id, typename T, std::size_t N>
+struct deduce_field_size<field<id, T, field_size<fixed<N>>>> {
   constexpr auto operator()() -> std::size_t {
     return N;
   }
 };
 
 template <fixed_string id>
-struct deduce_field_size<field_size<field_accessor<id>>> {
+struct deduce_field_size<field<id, std::vector<T>, field_size<field_accessor<id>>>> {
+  template <typename... fields>
+  constexpr auto operator()(const struct_field_list<fields...>& struct_fields) -> std::size_t {
+    return sizeof(T) * struct_fields[field_accessor<id>{}];
+  }
+};
+
+template <fixed_string id>
+struct deduce_field_size<field<id, std::string, field_size<field_accessor<id>>>> {
   template <typename... fields>
   constexpr auto operator()(const struct_field_list<fields...>& struct_fields) -> std::size_t {
     return struct_fields[field_accessor<id>{}];
