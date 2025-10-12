@@ -393,6 +393,9 @@ count: false
 - Works with any custom streams
 ---
 class: center, middle
+# Lets write our parser
+---
+class: center, middle
 ### &#x26A0 Template Metaprogramming Ahead!
 
 <!-- -------------------- Speaker Notes ------------------- -->
@@ -402,11 +405,10 @@ class: center, middle
   but not happy faces
 - I do get the sentiment here, they are hard to get right, slower compile times
 - But TMP has its place, like our little project
+
+<!-- -------------------- Start of slide ------------------- -->
 ---
-class: center, middle
-# TMP Primer Materials
----
-### A few excellent talks
+### TMP Primer Materials
 - Variadic Templates
   - [... + CTAD + NTTP](https://www.youtube.com/watch?v=Hyuvpv42YM8) by Miro Knejp
 - Metafunctions 
@@ -426,37 +428,19 @@ class: center, middle
   - which takes types or values known at compile time as input
   - returns types or values known at compile time
   - typically implemented with class templates, specializations and using aliases
-- One can roll out a function to search a type_list with a predicate
+- Similar to a function which searches for an element in a list of cast_valid_objects 
+  One can roll out a function to search a type_list with a predicate
 ---
-
-class: center, middle
-# Lets write our parser
----
-### Reality
+### What are we building?
 ```cpp
-* s2s::struct_field_list<
-*  s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
-*  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
-* >;
-
-* s2s::struct_field_list<
-*  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
-*  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
-* >;
-
 s2s::struct_field_list<
   s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>,
-  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>,
-  s2s::variance<
-    "c",
-    s2s::type<
-      s2s::match_field<"a">,
-      s2s::type_switch<
-        s2s::match_case<0xcafed00d, s2s::as_struct<inner_1>>,
-        s2s::match_case<0xdeadbeef, s2s::as_struct<inner_2>>
-      >
-    >
-  >
+  s2s::basic_field<"b", u32, s2s::field_size<s2s::fixed<4>>>
+>;
+
+s2s::struct_field_list<
+  s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
+  s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
 >;
 ```
 ---
@@ -569,13 +553,16 @@ struct field {
   field_type value{};
 };
 ```
-- The best thing here is that we can put another struct_field_list
-  inside our field, which makes nested structs possible
 --
 count: false
 ```cpp
 s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>> &#x2705
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
+???
+- The best thing here is that we can put another struct_field_list
+  inside our field, which makes nested structs possible
 ---
 class: middle
 ```cpp
@@ -726,9 +713,9 @@ constexpr auto operator|(const read_result& res, auto&& callable)
 char* byte_addressof(T& obj) {
   return reinterpret_cast<char*>(&obj);
 }
-/* other overloads
-std::array<T, N> -> return reinterpret_cast<char*>(&obj.data());
-*/
+// other overloads
+// std::array<T, N> -> return reinterpret_cast<char*>(&obj.data());
+//
 
 template <typename T>
 struct deduce_field_size;
@@ -907,25 +894,6 @@ Et viola!
     return 0;
   }
 ```
----
-### What we achieved
-- constexpr! as much as possible &#x2705
-- Support for
-  - Trivial&#x2705
-  - Array of trivials&#x2705
-  - Array of records&#x2705&#x1F7E1
-  - Length prefixed vector of trivials&#x2705
-  - Length prefixed vector of records&#x2705
-  - Const sized strings&#x2705
-  - Length prefixed strings&#x2705
-  - Optionals&#x2705
-  - Unions&#x2705
-  - Magic strings and numbers&#x2705
-- Validation of fields in place while reading&#x2705
-- Compile time endianness handling &#x2705
-- Pluggable interfaces working with custom streams&#x2705
-- Normal member access &#x274C 
-
 <!-- -------------------- Speaker Notes ------------------- -->
 ???
 - We might have not have built everything here in the talk
