@@ -460,6 +460,44 @@ s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>
 ```cpp
 template <std::size_t N>
 struct fixed_string {
+```
+---
+count: false
+### Construct for string template arguments
+```cpp
+template <std::size_t N>
+struct fixed_string {
+  std::array<char, N + 1> value;
+  constexpr fixed_string(): value{} {};
+  constexpr fixed_string(const char (&str)[N + 1]) {
+    std::copy_n(str, N + 1, value.data());
+  }
+```
+---
+count: false
+### Construct for string template arguments
+```cpp
+template <std::size_t N>
+struct fixed_string {
+  std::array<char, N + 1> value;
+  constexpr fixed_string(): value{} {};
+  constexpr fixed_string(const char (&str)[N + 1]) {
+    std::copy_n(str, N + 1, value.data());
+  }
+  constexpr const char* data() const { return value.data(); }
+  constexpr char* data() { return value.data(); }
+  constexpr std::size_t size() const { return N; }
+  constexpr auto to_sv() -> std::string_view const {
+    return std::string_view{data()};
+  }
+};
+```
+---
+count: false
+### Construct for string template arguments
+```cpp
+template <std::size_t N>
+struct fixed_string {
   std::array<char, N + 1> value;
   constexpr fixed_string(): value{} {};
   constexpr fixed_string(const char (&str)[N + 1]) {
@@ -481,6 +519,17 @@ constexpr bool operator==(fixed_string<N1> lhs, fixed_string<N2> rhs) {
   if constexpr(N1 != N2) return false;
   return std::string_view{lhs.data()} == std::string_view{rhs.data()};
 }
+```
+---
+count: false
+### Construct for string template arguments
+Now this should be possible
+
+```cpp
+template <fixed_string id>
+struct sample {};
+
+sample<"hello"> s{};
 ```
 ---
 ### Literals for accessing our fields
