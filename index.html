@@ -1,4 +1,5 @@
 <!-- https://github.com/gnab/remark/issues/538#issuecomment-419173985 -->
+<!-- todo: offline version -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -41,6 +42,8 @@ MASTODON:@hariceratops@mastodon.social
 PRIMARY_DOMAIN:embedded_systems
 ENGINEER_SINCE:2016_08_16
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Working as a SWE in Mbition, a subsidiary of Mercedes
   developing Infotainment SW
@@ -55,6 +58,8 @@ ENGINEER_SINCE:2016_08_16
 - The views presented are not of my employer
 - Project is not production ready, at least not yet!
 - We will walkthrough the simplified version of the project source
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - I have been developing SW with C++ for past 6 years or so
   So take my advice with a pinch of salt 
@@ -75,6 +80,8 @@ ENGINEER_SINCE:2016_08_16
   - [CTRE, Hana Dusíková](https://www.youtube.com/watch?v=g51_HYn_CqE&t=1232s)
   - [namedtuple++, Kris Jusiak](https://www.youtube.com/watch?v=4PwNi0Zgmm0)
   - [Value Based Metaprogramming, Kris Jusiak](https://www.youtube.com/watch?v=yriNqhv-oM0)
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Too much boiler plate if handwritten, code generation was not appealing
 - Thanks to Kris, Hana
@@ -82,6 +89,8 @@ ENGINEER_SINCE:2016_08_16
 ---
 class: center, middle
 # Fact Check!
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - I wanted to do a quiz since I was planning a onsite talk
   but I will have to turn it into fact check
@@ -167,10 +176,10 @@ auto main(void) -> int {
 };
 ```
 ```sh
-0x000000: 0xef 0xbe 0xad 0xde ....
-*0x000004: 0x42 0x42 0x42 0x0d ....
-0x000008: 0xd0 0xfe 0xca      ....
-0x00000c:
+  0x000000: 0xef 0xbe 0xad 0xde ....
+* 0x000004: 0x42 0x42 0x42 0x0d ....
+  0x000008: 0xd0 0xfe 0xca      ....
+  0x00000c:
    bytes: 11
 ```
 --
@@ -229,6 +238,8 @@ auto main(void) -> int {
   file.close();
 };
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Lets clean it up for readability
 ---
@@ -341,6 +352,8 @@ printf("%s %s\n", h.left_hand, h.right_hand);
 ---
 .center[![i_like_this](./images/i_like_this.png)]
 
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - But I chose TMP
 - Why?
@@ -348,8 +361,41 @@ printf("%s %s\n", h.left_hand, h.right_hand);
   - More importantly it is related to the little suprise I talked about in the
     previous slide
 ---
+### The promise
+- No macros
+--
+count: false
+- Reasonably good error messages
+--
+count: false
+- constexpr! as much as possible
+--
+count: false
+- Support for
+  - Trivial
+  - Array of trivials
+  - Array of records
+  - Length prefixed vector of trivials
+  - Length prefixed vector of records
+  - Const sized strings
+  - Length prefixed strings
+  - Optionals
+  - Unions
+  - Magic strings and numbers
+--
+count: false
+- Validation of fields in place while reading
+--
+count: false
+- Compile time endianness handling
+--
+count: false
+- Works with any custom streams
+---
 class: center, middle
 ### &#x26A0 Template Metaprogramming Ahead!
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - I have had love-hate relationship with TMP
 - Whenever I write template typename ..., I get faces, I mean not angry faces, 
@@ -366,6 +412,8 @@ class: center, middle
 - Metafunctions 
   - [Compile Time Functional Programming](https://www.youtube.com/watch?v=WtHWFoKf8o0) by Bartosz Milewski, Eric Niebler 
 
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - It is not mandatory to know these concepts before hand for the talk
 - But in case if the topics are unfamiliar here are some great talks online to 
@@ -383,32 +431,6 @@ class: center, middle
 
 class: center, middle
 # Lets write our parser
----
-### Our Dream [Spoiler - would stay as dream for now &#x1F605]
-```
-struct_field_list(
-  basic_field("a", u32, field_size(fixed(4))),
-  basic_field("b", u32, field_size(fixed(4)))
-);
-struct_field_list(
-  basic_field("len", std::size_t, field_size(fixed(8))),
-  str_field("str", field_size(len_from_field("len")))
-);
-
-struct_field_list(
-  basic_field("a", u32, field_size(fixed(4))),
-  basic_field("b", u32, field_size(fixed(4))),
-  variance("c",
-    type(
-      match_field("a"),
-      type_switch(
-        match_case(0xcafed00d, as_struct(inner_1)),
-        match_case(0xdeadbeef, as_struct(inner_2))
-      )
-    )
-  )
-);
-```
 ---
 ### Reality
 ```cpp
@@ -443,6 +465,8 @@ class: center, middle
 ```cpp
 s2s::basic_field<"a", u32, s2s::field_size<s2s::fixed<4>>>
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - A fixed compile time string as field named
 - The type of the field
@@ -595,6 +619,8 @@ struct struct_field_list : fields... {
   - if a field depends on another field for its size, then the dependency occurs strictly to left
 - Not adhering to this constraints will result in compile time errors
 
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
 - Will skip the complete walkthrough for are_unique_fields_v and size_dependencies_resolved_v
@@ -623,6 +649,8 @@ struct field_lookup<type_list<head, rest...>, id> {
 template <typename list, fixed_string id>
 using field_lookup_v = typename field_lookup<list, id>::type;
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - If we have exhausted the list, we have not found the field we are 
 trying access in the struct
@@ -650,6 +678,8 @@ count: false
  2190 |     requires (!std::is_same_v<field_lookup_failed, field>)
       |
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Not the prettiest error message, this is as good as it gets
 - In fact clang does a great job with being succtinct
@@ -686,6 +716,7 @@ constexpr auto operator|(const read_result& res, auto&& callable)
 }
 ```
 
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Note that read_result is for individual fields,
   not for the complete struct we wrote
@@ -751,6 +782,8 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
   }
 };
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Short circuit the remaining pipeline since read failed for current field
 - Box unwrapping diagram?
@@ -773,6 +806,8 @@ if constexpr (is_struct_field_list_v<extract_type_from_field_v<fields>>) {
 
 if(!read_res) /* ... */
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - "if constexpr" clauses which only satisfy the condition at compile time are
   considered in the binary
@@ -788,6 +823,7 @@ template <field_list_like T, input_stream_like stream>
 }
 ```
 
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - These are user facing APIs with constraints to avoid misuse and provide relatively
   clean error messages
@@ -819,6 +855,8 @@ template <fixed_string id, field_list_like T>
 using struct_field = field<id, T, field_size<size_dont_care>>;
 
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Just like the cast function we add some user facing Meta-APIs
   for describing fields
@@ -872,12 +910,10 @@ Et viola!
 ---
 ### What we achieved
 - constexpr! as much as possible &#x2705
---
-count: false
 - Support for
   - Trivial&#x2705
   - Array of trivials&#x2705
-  - Array of records&#x2705
+  - Array of records&#x2705&#x1F7E1
   - Length prefixed vector of trivials&#x2705
   - Length prefixed vector of records&#x2705
   - Const sized strings&#x2705
@@ -885,29 +921,31 @@ count: false
   - Optionals&#x2705
   - Unions&#x2705
   - Magic strings and numbers&#x2705
---
-count: false
 - Validation of fields in place while reading&#x2705
---
-count: false
 - Compile time endianness handling &#x2705
---
-count: false
 - Pluggable interfaces working with custom streams&#x2705
---
-count: false
 - Normal member access &#x274C 
+
+<!-- -------------------- Speaker Notes ------------------- -->
+???
+- We might have not have built everything here in the talk
+  But it is in possible to implement these features with the
+  principles we established
 ---
 ### Benchmarks
 todo
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - But we are not quite done yet, remember the little suprised
   we reserved for the end
 ---
 ### &#x1F381 = Reflection &#x2661
-- C++26 or future promises
+- C++26 or future standards promises
   - [Static Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2996r0.html)
   - [Annotation for Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p3394r0.html)
+--
+count:false
 - Lets you write readable annotation similar to Rust
 
 ``` rust
@@ -928,6 +966,8 @@ struct [[=readable_from_stream]] Dog {
   bone_piles: Vec<u16>;
 }
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Obliged to bring Rust in the talk
 - binrw is an equivalent to our little project here
@@ -965,7 +1005,7 @@ struct [[=readable_from_stream]] Dog {
     auto res = 
 *     s2s::struct_cast<our_struct>(ifs)
           .transform([](const our_struct& fields){
-*           std::println("len={} str={}", fields.len, fields.str);
+*           std::println("len={} str={}", fields["len_f"], fields["len_f"]);
             return fields;
           }).transform_error([](const s2s::cast_error& err){
             std::println("failure_reason={} failed_at={}", static_cast<int>(err.failure_reason), err.failed_at);
@@ -974,7 +1014,13 @@ struct [[=readable_from_stream]] Dog {
     return 0;
   }
 ```
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
+- The code partially remains the same, it is possible to 
+  access members with regular . operator but leaving out the square bracket
+  operator will make it backward compatible. After all we are in C++
+  world, backward compatibility is something we strive for
 - In near future this should be possible
 - I plan to complete this experimental implementation or atleast explore
   it limits by early 2026
@@ -983,10 +1029,14 @@ Link to project: [s2s](https://github.com/hariceratops/s2s)
 ```cpp
 return 0;
 ```
-GIT:[hariceratops](https://github.com/hariceratops/)
-LINKEDIN:[Hari Prasad](https://www.linkedin.com/in/hari-prasad-manoharan-79a4ba102/)
-MASTODON:@hariceratops@mastodon.social
 
+
+- GIT:[hariceratops](https://github.com/hariceratops/)
+- LINKEDIN:[Hari Prasad](https://www.linkedin.com/in/hari-prasad-manoharan-79a4ba102/)
+- MASTODON:@hariceratops@mastodon.social
+
+
+<!-- -------------------- Speaker Notes ------------------- -->
 ???
 - The godbolt execution doesnt timeout
 - Dont be afraid to do a project, even at the cost of failing
