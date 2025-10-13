@@ -641,6 +641,7 @@ struct struct_field_list : fields... {
             typename field = field_lookup_v<
               type_list<fields...>, 
               field_accessor::field_id>
+            >
     requires (!std::is_same_v<field_lookup_failed, field>)
   constexpr const auto& operator[](field_accessor) const {
     return static_cast<const field&>(*this).value;
@@ -663,6 +664,9 @@ struct struct_field_list : fields... {
 ---
 ### How does the lookup work?
 ```cpp
+template <typename ... types>
+struct type_list {};
+
 struct field_lookup_failed {};
 
 template <typename ls, fixed_string id>
@@ -672,14 +676,14 @@ template <fixed_string id>
 struct field_lookup<type_list<>, id> {
   using type = field_lookup_failed;
 };
-template <fixed_string id, typename T, std::size_t size, typename... rest>
+template <fixed_string id, typename T, typename size, typename... rest>
 struct field_lookup<type_list<field<id, T, size>, rest...>, id> {
   using type = field<id, T, size>;
 };
 
 template <fixed_string id, typename head, typename... rest>
 struct field_lookup<type_list<head, rest...>, id> {
-  using type = typename field_lookup<field_list<rest...>, id>::type;
+  using type = typename field_lookup<type_list<rest...>, id>::type;
 };
 
 template <typename list, fixed_string id>
@@ -744,28 +748,34 @@ struct cast_error {
 
 
 using read_result = std::expected<void, cast_error>;
-
-constexpr auto operator|(const read_result& res, auto&& callable)
-  -> read_result
-{
-  return res ? callable() : std::unexpected(res.error());
-}
 ```
 
 <!-- -------------------- Speaker Notes ------------------- -->
 ???
 - Note that read_result is for individual fields,
   not for the complete struct we wrote
+
 ---
 ### Utilities to calculate address and size of fields
 ```cpp
+template <typename T>
 char* byte_addressof(T& obj) {
   return reinterpret_cast<char*>(&obj);
 }
+
+char* byte_addressof(std::string& obj) {
+  return reinterpret_cast<char*>(&obj[0]);
+}
+
 // other overloads
 // std::array<T, N> -> return reinterpret_cast<char*>(&obj.data());
 //
+```
 
+---
+count: false
+
+```cpp
 template <typename T>
 struct deduce_field_size;
 
@@ -776,7 +786,7 @@ struct deduce_field_size<field<id, T, field_size<fixed<N>>>> {
   }
 };
 
-template <fixed_string id>
+template <fixed_string id, typename T>
 struct deduce_field_size<field<id, std::vector<T>, field_size<field_accessor<id>>>> {
   template <typename... fields>
   constexpr auto operator()(const struct_field_list<fields...>& struct_fields) -> std::size_t {
@@ -792,6 +802,101 @@ struct deduce_field_size<field<id, std::string, field_size<field_accessor<id>>>>
   }
 };
 ```
+
+---
+### Monadic Pipeline
+```cpp
+constexpr auto operator|(const read_result& res, auto&& callable)
+  -> read_result
+{
+  return res ? callable() : std::unexpected(res.error());
+}
+```
+---
+
+### We read atlast
+```cpp
+template <typename... args>
+struct struct_cast_impl;
+
+template <typename... fields, typename stream, auto endianness>
+struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+```
+
+---
+count: false
+
+### We read atlast
+```cpp
+template <typename... args>
+struct struct_cast_impl;
+
+template <typename... fields, typename stream, auto endianness>
+struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+  using S = struct_field_list<fields...>;
+  using R = std::expected<S, cast_error>;
+```
+
+---
+count: false
+
+### We read atlast
+```cpp
+template <typename... args>
+struct struct_cast_impl;
+
+template <typename... fields, typename stream, auto endianness>
+struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+  using S = struct_field_list<fields...>;
+  using R = std::expected<S, cast_error>;
+
+  constexpr auto operator()(stream& s) -> R {
+```
+
+---
+count: false
+
+### We read atlast
+```cpp
+template <typename... args>
+struct struct_cast_impl;
+
+template <typename... fields, typename stream, auto endianness>
+struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+  using S = struct_field_list<fields...>;
+  using R = std::expected<S, cast_error>;
+
+  constexpr auto operator()(stream& s) -> R {
+    S field_list;
+    read_result pipeline_seed{};
+```
+
+---
+count: false
+
+### We read atlast
+```cpp
+template <typename... args>
+struct struct_cast_impl;
+
+template <typename... fields, typename stream, auto endianness>
+struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+  using S = struct_field_list<fields...>;
+  using R = std::expected<S, cast_error>;
+
+  constexpr auto operator()(stream& s) -> R {
+    S field_list;
+    read_result pipeline_seed{};
+    auto res = (
+      pipeline_seed |
+      ... |
+      [&field_list]() -> read_result {
+        auto& field = static_cast<fields&>(field_list);
+        // Some read magic here &#x1FA84
+      }
+    );
+```
+
 ---
 ### We read atlast
 ```cpp
@@ -824,23 +929,27 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
 - Short circuit the remaining pipeline since read failed for current field
 - Box unwrapping diagram?
 ---
+### &#x1FA84
+
 ```cpp
-bool read_res = false;
-if constexpr (is_struct_field_list_v<extract_type_from_field_v<fields>>) {
+if constexpr (
+  is_struct_field_list_v<extract_type_from_field_v<fields>>
+) {
   using inner_struct = extract_type_from_field_v<fields>>;
   auto field_value = struct_cast<inner_struct>(ifs);
   if(!field_value)  
     return std::unexpected(field_value.error());
-} else if constexpr (is_comptime_sized_field_v<fields>) {
-  // constexpr auto read_size = field_size::size_type_t::count;
-  read_res = ifs.read(byte_addressof(field.value), read_size);
-} else if constexpr (is_runtime_sized_field_v<fields>) {
-  constexpr auto len_to_read = deduce_field_size<field_size>{}(input);
-  constexpr auto read_size = len_to_read * sizeof(field.value);
-  read_res = ifs.read(byte_addressof(field.value), read_size);
+} else if constexpr (
+    is_comptime_sized_field_v<fields> || 
+    is_runtime_sized_field_v<fields>) 
+{
+  constexpr auto read_size = deduce_field_size<field_size>{}(input);
+  if(!ifs.read(byte_addressof(field.value), read_size)) {
+    constexpr auto field_name = field::id.to_sv();
+    return std::unexpected(cast_error{buffer_exhaustion, field_name});
+  }
 }
 
-if(!read_res) /* ... */
 ```
 
 <!-- -------------------- Speaker Notes ------------------- -->
@@ -916,7 +1025,7 @@ count: false
 --
 count: false
 
-Et viola!
+Et viola! [Link to Godbolt](https://godbolt.org/z/obEcKW3a5)
 
 ```cpp
   #include "s2s.hpp"
@@ -1001,10 +1110,7 @@ struct [[=readable_from_stream]] Dog {
   is, it can be easily ported to static reflection based implementation 
 - In fact the latest code on github relies on value based metaprogramming
   which can be easily ported to the reflection proposal
-- Replace the user facing API with annotated structs and still let the new code
-  use our template based parser generator underneath
-- This might be a partially breaking change, especially for user facing API
-  But it is for the greater good since it is readable
+
 ---
 ### In a galaxy not so far away!
 ```cpp
@@ -1032,6 +1138,40 @@ struct [[=readable_from_stream]] Dog {
   }
 ```
 
+<!-- -------------------- Speaker Notes ------------------- -->
+???
+- Replace the user facing API with annotated structs and still let the new code
+  use our template based parser generator underneath
+- This might be a partially breaking change, especially for user facing API
+  But it is for the greater good since it is readable
+
+---
+count: false
+### In a galaxy not so far away!
+```cpp
+  #include "s2s.hpp"
+  #include <print>
+
+* struct [[=readable_from_stream]] Dog {
+*   std::size_t len;
+*   [[=field_len("len")]]
+*   std::string str;
+* }
+
+  auto main(void) -> int {
+    std::ifstream ifs("sample.bin", std::ios::in | std::ios::binary);
+    auto res = 
+*     s2s::struct_cast<our_struct>(ifs)
+          .transform([](const our_struct& fields){
+*           std::println("len={} str={}", fields.len, fields.str);
+            return fields;
+          }).transform_error([](const s2s::cast_error& err){
+            std::println("failure_reason={} failed_at={}", static_cast<int>(err.failure_reason), err.failed_at);
+            return err;
+          });
+    return 0;
+  }
+```
 <!-- -------------------- Speaker Notes ------------------- -->
 ???
 - The code partially remains the same, it is possible to 
