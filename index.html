@@ -468,6 +468,11 @@ s2s::struct_field_list<
   s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
 >;
 ```
+
+???
+- It is a custom meta struct made up of multiple fields
+- We dont get a normal member access unfortunately, instead we get
+  a map like interface
 ---
 class: center, middle
 
@@ -580,6 +585,11 @@ Now we can do this,
 // operator with field_accessor as input argument 
 fields["hello"_f];
 ```
+
+???
+- We need a way to access our fields from our "structs"
+- There is a reason why we cant simply use fixed_string values straight way
+  It will become clear in our struct implementation
 ---
 ### Denoting sizes
 ```cpp
@@ -599,6 +609,9 @@ struct fixed {
 template <fixed_string id>
 using len_from_field = field_accessor<id>;
 ```
+???
+- We will have instantiate the field_size either with count, 
+  or length hint 
 ---
 We can denote
 --
@@ -646,12 +659,21 @@ s2s::struct_field_list<
 >;
 ```
 ---
+### Utility to create list of types
+```cpp
+template <typename... types>
+struct type_list {};
+```
+---
 ### Struct
 ```cpp
 template <typename... fields>
   requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
 struct struct_field_list : fields... {
 ```
+???
+- Prohibit duplicates like regular structs
+-
 ---
 count: false
 ### Struct
@@ -877,6 +899,16 @@ constexpr auto operator|(const read_result& res, auto&& callable)
   return res ? callable() : std::unexpected(res.error());
 }
 ```
+
+???
+- Pipeline is for Utility to handle errors
+- Pipeline can be imagined with multiple nodes in it
+- Each node takes a read_result or callable which returns read_result
+- In abstract sense, each takes expected and treats like a box, 
+  unwraps it sees into it. If there is an error inside it doesnt call 
+  the callable we pass into it but rather returns the error
+- Else it calls the callable and passes the value to next node in the 
+  pipeline
 ---
 
 ### We read atlast
@@ -961,7 +993,8 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
       }
     );
 ```
-
+???
+- Initial value as pipeline seed, just to trigger/kick start the pipeline
 ---
 ### We read atlast
 ```cpp
@@ -988,6 +1021,8 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
   }
 };
 ```
+???
+- Expanded by fold expression into the | pipe binary operator
 
 <!-- -------------------- Speaker Notes ------------------- -->
 ???
