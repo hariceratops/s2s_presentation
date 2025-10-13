@@ -392,6 +392,33 @@ count: false
 count: false
 - Works with any custom streams
 ---
+### The promise
+```cpp
+  #include "s2s.hpp"
+  #include <print>
+
+  using namespace s2s_literals;
+
+  auto main(void) -> int {
+*   using our_struct = 
+*     s2s::struct_field_list<
+*       s2s::basic_field<"len", std::size_t, s2s::field_size<s2s::fixed<8>>>,
+*       s2s::str_field<"str", s2s::field_size<s2s::len_from_field<"len">>>
+*     >;
+    std::ifstream ifs("sample.bin", std::ios::in | std::ios::binary);
+    auto res = 
+*     s2s::struct_cast<our_struct>(ifs)
+          .transform([](const our_struct& fields){
+            std::println("len={} str={}", fields["len"_f], fields["str"_f]);
+            return fields;
+          }).transform_error([](const s2s::cast_error& err){
+            std::println("failure_reason={} failed_at={}", static_cast<int>(err.failure_reason), err.failed_at);
+            return err;
+          });
+    return 0;
+  }
+```
+---
 class: center, middle
 # Lets write our parser
 ---
@@ -405,8 +432,6 @@ class: center, middle
   but not happy faces
 - I do get the sentiment here, they are hard to get right, slower compile times
 - But TMP has its place, like our little project
-
-<!-- -------------------- Start of slide ------------------- -->
 ---
 ### TMP Primer Materials
 - Variadic Templates
@@ -621,6 +646,45 @@ s2s::struct_field_list<
 >;
 ```
 ---
+### Struct
+```cpp
+template <typename... fields>
+  requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
+struct struct_field_list : fields... {
+```
+---
+count: false
+### Struct
+```cpp
+template <typename... fields>
+  requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
+struct struct_field_list : fields... {
+  template <typename field_accessor,
+            typename field = field_lookup_v<
+              type_list<fields...>, 
+              field_accessor::field_id>
+            >
+    requires (!std::is_same_v<field_lookup_failed, field>)
+  constexpr auto& operator[](field_accessor)  {
+```
+---
+count: false
+### Struct
+```cpp
+template <typename... fields>
+  requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
+struct struct_field_list : fields... {
+  template <typename field_accessor,
+            typename field = field_lookup_v<
+              type_list<fields...>, 
+              field_accessor::field_id>
+            >
+    requires (!std::is_same_v<field_lookup_failed, field>)
+  constexpr auto& operator[](field_accessor)  {
+    return static_cast<field&>(*this).value;
+  }
+```
+---
 count: false
 ### Struct
 ```cpp
@@ -781,7 +845,8 @@ struct deduce_field_size;
 
 template <fixed_string id, typename T, std::size_t N>
 struct deduce_field_size<field<id, T, field_size<fixed<N>>>> {
-  constexpr auto operator()() -> std::size_t {
+  template <typename... fields>
+  constexpr auto operator()(const struct_field_list<fields...>& struct_fields) -> std::size_t {
     return N;
   }
 };
@@ -794,11 +859,11 @@ struct deduce_field_size<field<id, std::vector<T>, field_size<field_accessor<id>
   }
 };
 
-template <fixed_string id>
-struct deduce_field_size<field<id, std::string, field_size<field_accessor<id>>>> {
+template <fixed_string id, fixed_string size_src_id>
+struct deduce_field_size<field<id, std::string, field_size<field_accessor<size_src_id>>>> {
   template <typename... fields>
   constexpr auto operator()(const struct_field_list<fields...>& struct_fields) -> std::size_t {
-    return struct_fields[field_accessor<id>{}];
+    return struct_fields[field_accessor<size_src_id>{}];
   }
 };
 ```
@@ -935,9 +1000,75 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
 using underlying_type = extract_type_from_field_v<fields>;
 
 if constexpr (field_list_like<underlying_type>) {
+```
+---
+count: false
+
+### &#x1FA84
+
+```cpp
+using underlying_type = extract_type_from_field_v<fields>;
+
+if constexpr (field_list_like<underlying_type>) {
   auto field_value = struct_cast<underlying_type>(s);
-  if(!field_value) return std::unexpected(field_value.error());
-} else if constexpr (constant_sized_like<underlying_type> || variable_sized_buffer_like<underlying_type>) {
+  if(!field_value) 
+    return std::unexpected(field_value.error());
+```
+---
+count: false
+
+### &#x1FA84
+
+```cpp
+using underlying_type = extract_type_from_field_v<fields>;
+
+if constexpr (field_list_like<underlying_type>) {
+  auto field_value = struct_cast<underlying_type>(s);
+  if(!field_value) 
+    return std::unexpected(field_value.error());
+} else if constexpr (
+    constant_sized_like<underlying_type> || 
+    variable_sized_buffer_like<underlying_type>
+  )
+```
+---
+count: false
+
+### &#x1FA84
+
+```cpp
+using underlying_type = extract_type_from_field_v<fields>;
+
+if constexpr (field_list_like<underlying_type>) {
+  auto field_value = struct_cast<underlying_type>(s);
+  if(!field_value) 
+    return std::unexpected(field_value.error());
+} else if constexpr (
+    constant_sized_like<underlying_type> || 
+    variable_sized_buffer_like<underlying_type>
+  )
+{
+  auto read_size = deduce_field_size<fields>{}(field_list);
+  if constexpr(variable_sized_buffer_like<underlying_type>)
+    field.value.resize(read_size);
+```
+---
+count: false
+
+### &#x1FA84
+
+```cpp
+using underlying_type = extract_type_from_field_v<fields>;
+
+if constexpr (field_list_like<underlying_type>) {
+  auto field_value = struct_cast<underlying_type>(s);
+  if(!field_value) 
+    return std::unexpected(field_value.error());
+} else if constexpr (
+    constant_sized_like<underlying_type> || 
+    variable_sized_buffer_like<underlying_type>
+  )
+{
   auto read_size = deduce_field_size<fields>{}(field_list);
   if constexpr(variable_sized_buffer_like<underlying_type>)
     field.value.resize(read_size);
@@ -959,7 +1090,9 @@ if constexpr (field_list_like<underlying_type>) {
 ### User API - Cast
 ```cpp
 template <field_list_like T, input_stream_like stream>
-[[nodiscard]] constexpr auto struct_cast(stream& s) -> std::expected<T, cast_error> {
+[[nodiscard]] constexpr auto struct_cast(stream& s)
+  -> std::expected<T, cast_error> 
+{
   return struct_cast_impl<T, stream>{}(s);
 }
 ```
@@ -971,8 +1104,9 @@ template <field_list_like T, input_stream_like stream>
 ---
 ### User API - Field Descriptors
 ```cpp
+template <typename size, typename field_type>
 concept field_fits_to_underlying_type =
-  deduce_field_size<size>{}() <= sizeof(field_type);
+  size::size_type_t::count <= sizeof(field_type);
 
 template <fixed_string id, integral T, fixed_size_like size_type>
   requires field_fits_to_underlying_type<size_type, T>
@@ -1021,7 +1155,7 @@ count: false
 --
 count: false
 
-Et viola! [Link to Godbolt](https://godbolt.org/z/obEcKW3a5)
+Et viola! [Link to Godbolt](https://godbolt.org/z/doW98c6oY)
 
 ```cpp
   #include "s2s.hpp"
