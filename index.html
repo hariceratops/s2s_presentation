@@ -932,24 +932,20 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
 ### &#x1FA84
 
 ```cpp
-if constexpr (
-  is_struct_field_list_v<extract_type_from_field_v<fields>>
-) {
-  using inner_struct = extract_type_from_field_v<fields>>;
-  auto field_value = struct_cast<inner_struct>(ifs);
-  if(!field_value)  
-    return std::unexpected(field_value.error());
-} else if constexpr (
-    is_comptime_sized_field_v<fields> || 
-    is_runtime_sized_field_v<fields>) 
-{
-  constexpr auto read_size = deduce_field_size<field_size>{}(input);
-  if(!ifs.read(byte_addressof(field.value), read_size)) {
-    constexpr auto field_name = field::id.to_sv();
+using underlying_type = extract_type_from_field_v<fields>;
+
+if constexpr (field_list_like<underlying_type>) {
+  auto field_value = struct_cast<underlying_type>(s);
+  if(!field_value) return std::unexpected(field_value.error());
+} else if constexpr (constant_sized_like<underlying_type> || variable_sized_buffer_like<underlying_type>) {
+  auto read_size = deduce_field_size<fields>{}(field_list);
+  if constexpr(variable_sized_buffer_like<underlying_type>)
+    field.value.resize(read_size);
+  if(!s.read(byte_addressof(field.value), read_size)) {
+    constexpr auto field_name = fields::field_id.to_sv();
     return std::unexpected(cast_error{buffer_exhaustion, field_name});
   }
 }
-
 ```
 
 <!-- -------------------- Speaker Notes ------------------- -->
