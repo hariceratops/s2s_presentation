@@ -368,6 +368,9 @@ count: false
 - Reasonably good error messages
 --
 count: false
+- Parser generated at compile time
+--
+count: false
 - constexpr! as much as possible
 --
 count: false
@@ -562,35 +565,6 @@ struct sample {};
 sample<"hello"> s{};
 ```
 ---
-### Literals for accessing our fields
-```cpp
-template <fixed_string id>
-struct field_accessor {
-  static constexpr auto field_id = id;
-};
-
-
-namespace s2s_literals {
-template <fixed_string id>
-constexpr auto operator""_f() {
-  return field_accessor<id>{};
-}
-}
-```
---
-count: false
-Now we can do this,
-```cpp
-// if a hypotheical type supports a square bracket 
-// operator with field_accessor as input argument 
-fields["hello"_f];
-```
-
-???
-- We need a way to access our fields from our "structs"
-- There is a reason why we cant simply use fixed_string values straight way
-  It will become clear in our struct implementation
----
 ### Denoting sizes
 ```cpp
 // Private, useful for struct fields
@@ -665,15 +639,44 @@ template <typename... types>
 struct type_list {};
 ```
 ---
+### Literals for accessing our fields
+```cpp
+template <fixed_string id>
+struct field_accessor {
+  static constexpr auto field_id = id;
+};
+
+
+namespace s2s_literals {
+template <fixed_string id>
+constexpr auto operator""_f() {
+  return field_accessor<id>{};
+}
+}
+```
+--
+count: false
+Now we can do this,
+```cpp
+// if a hypotheical type supports a square bracket 
+// operator with field_accessor as input argument 
+fields["hello"_f];
+```
+
+???
+- We need a way to access our fields from our "structs"
+- There is a reason why we cant simply use fixed_string values straight way
+  It will become clear in our struct implementation
+---
 ### Struct
 ```cpp
 template <typename... fields>
   requires are_unique_fields_v<fields...> && size_dependencies_resolved_v<fields...>
 struct struct_field_list : fields... {
 ```
+
 ???
 - Prohibit duplicates like regular structs
--
 ---
 count: false
 ### Struct
@@ -750,9 +753,71 @@ struct struct_field_list : fields... {
 ---
 ### How does the lookup work?
 ```cpp
-template <typename ... types>
-struct type_list {};
+struct field_lookup_failed {};
+```
+---
+count: false
 
+### How does the lookup work?
+```cpp
+struct field_lookup_failed {};
+
+template <typename ls, fixed_string id>
+struct field_lookup;
+
+template <fixed_string id>
+struct field_lookup<type_list<>, id> {
+  using type = field_lookup_failed;
+};
+```
+---
+count: false
+
+### How does the lookup work?
+```cpp
+struct field_lookup_failed {};
+
+template <typename ls, fixed_string id>
+struct field_lookup;
+
+template <fixed_string id>
+struct field_lookup<type_list<>, id> {
+  using type = field_lookup_failed;
+};
+template <fixed_string id, typename T, typename size, typename... rest>
+struct field_lookup<type_list<field<id, T, size>, rest...>, id> {
+  using type = field<id, T, size>;
+};
+```
+---
+count: false
+
+### How does the lookup work?
+```cpp
+struct field_lookup_failed {};
+
+template <typename ls, fixed_string id>
+struct field_lookup;
+
+template <fixed_string id>
+struct field_lookup<type_list<>, id> {
+  using type = field_lookup_failed;
+};
+template <fixed_string id, typename T, typename size, typename... rest>
+struct field_lookup<type_list<field<id, T, size>, rest...>, id> {
+  using type = field<id, T, size>;
+};
+
+template <fixed_string id, typename head, typename... rest>
+struct field_lookup<type_list<head, rest...>, id> {
+  using type = typename field_lookup<type_list<rest...>, id>::type;
+};
+```
+---
+count: false
+
+### How does the lookup work?
+```cpp
 struct field_lookup_failed {};
 
 template <typename ls, fixed_string id>
@@ -901,9 +966,11 @@ constexpr auto operator|(const read_result& res, auto&& callable)
 ```
 
 ???
-- Pipeline is for Utility to handle errors
-- Pipeline can be imagined with multiple nodes in it
+- Pipeline is for Utility to handle errors while reading a field
+- Assuming each node in the pipeline takes a readable which
+  reads a field and returns read_result
 - Each node takes a read_result or callable which returns read_result
+- Pipeline can be imagined with multiple nodes in it
 - In abstract sense, each takes expected and treats like a box, 
   unwraps it sees into it. If there is an error inside it doesnt call 
   the callable we pass into it but rather returns the error
@@ -916,9 +983,15 @@ constexpr auto operator|(const read_result& res, auto&& callable)
 template <typename... args>
 struct struct_cast_impl;
 
-template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+template <typename... fields, typename stream>
+struct struct_cast_impl<struct_field_list<fields...>, stream> {
 ```
+
+???
+- Stream is templated to take any stream type
+- We can even go ahead and add a constraint to make sure its
+  has characteristics of input stream. Say read method and convertible to 
+  bool
 
 ---
 count: false
@@ -928,8 +1001,8 @@ count: false
 template <typename... args>
 struct struct_cast_impl;
 
-template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+template <typename... fields, typename stream>
+struct struct_cast_impl<struct_field_list<fields...>, stream> {
   using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
 ```
@@ -942,8 +1015,8 @@ count: false
 template <typename... args>
 struct struct_cast_impl;
 
-template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+template <typename... fields, typename stream>
+struct struct_cast_impl<struct_field_list<fields...>, stream> {
   using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
 
@@ -958,8 +1031,8 @@ count: false
 template <typename... args>
 struct struct_cast_impl;
 
-template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+template <typename... fields, typename stream>
+struct struct_cast_impl<struct_field_list<fields...>, stream> {
   using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
 
@@ -976,8 +1049,8 @@ count: false
 template <typename... args>
 struct struct_cast_impl;
 
-template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+template <typename... fields, typename stream>
+struct struct_cast_impl<struct_field_list<fields...>, stream> {
   using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
 
@@ -1001,8 +1074,8 @@ struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
 template <typename... args>
 struct struct_cast_impl;
 
-template <typename... fields, typename stream, auto endianness>
-struct struct_cast_impl<struct_field_list<fields...>, stream, endianness> {
+template <typename... fields, typename stream>
+struct struct_cast_impl<struct_field_list<fields...>, stream> {
   using S = struct_field_list<fields...>;
   using R = std::expected<S, cast_error>;
 
