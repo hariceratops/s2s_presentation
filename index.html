@@ -884,29 +884,6 @@ s2s::struct_field_list<
 ```
 &#x2705
 ---
-### Errors
-```cpp
-enum error_reason {
-  buffer_exhaustion
-  /* maybe few more in the future */
-};
-
-
-struct cast_error {
-  error_reason failure_reason;
-  std::string_view failed_at;
-};
-
-
-using read_result = std::expected<void, cast_error>;
-```
-
-<!-- -------------------- Speaker Notes ------------------- -->
-???
-- Note that read_result is for individual fields,
-  not for the complete struct we wrote
-
----
 ### Utilities to calculate address and size of fields
 ```cpp
 template <typename T>
@@ -954,6 +931,29 @@ struct deduce_field_size<field<id, std::string, field_size<field_accessor<size_s
   }
 };
 ```
+---
+### Errors
+```cpp
+enum error_reason {
+  buffer_exhaustion
+  /* maybe few more in the future */
+};
+
+
+struct cast_error {
+  error_reason failure_reason;
+  std::string_view failed_at;
+};
+
+
+// Result of reading one field
+using read_result = std::expected<void, cast_error>;
+```
+
+<!-- -------------------- Speaker Notes ------------------- -->
+???
+- Note that read_result is for individual fields,
+  not for the complete struct we wrote
 
 ---
 ### Monadic Pipeline
@@ -1297,7 +1297,8 @@ Et viola! [Link to Godbolt](https://godbolt.org/z/doW98c6oY)
   principles we established
 ---
 ### Benchmarks
-todo
+
+##&#x1F44B
 
 <!-- -------------------- Speaker Notes ------------------- -->
 ???
@@ -1307,7 +1308,7 @@ todo
 ### &#x1F381 = Reflection &#x2661
 - C++26 or future standards promises
   - [Static Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2996r0.html)
-  - [Annotation for Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p3394r0.html)
+  - [Annotation for Reflection](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p3394r0.html) - [Example](https://github.com/hariceratops/p2996_playground/blob/main/src/derive_debug.cpp)
 --
 count:false
 - Lets you write readable annotation similar to Rust
